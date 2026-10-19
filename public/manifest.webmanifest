@@ -1,0 +1,18 @@
+{
+  "id": "/",
+  "name": "Lá sách — Đọc để mở thế giới",
+  "short_name": "Lá sách",
+  "lang": "vi",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f8f5",
+  "theme_color": "#285e4c",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
