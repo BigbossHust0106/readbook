@@ -1821,3 +1821,24 @@ body.child-mode .app > main {
   margin-left: 0;
   width: 100%;
 }
+
+.pdf-import {
+  border-top: 1px solid #dce3d8;
+  margin-top: 1rem;
+  padding-top: 1rem;
+}
+.pdf-page-view {
+  background: #e8ece5;
+  border-radius: 8px;
+  padding: 8px;
+  margin: 12px 0;
+  max-height: 440px;
+  overflow: auto;
+}
+.pdf-page-view canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: white;
+}
+.pdf-import progress { width: 100%; accent-color: #27614d; }

@@ -1,7 +1,9 @@
 import JSZip from "jszip";
+import type { PdfTextPage } from "./pdf";
 import { id, textChapters, type Book, type Lang, type Chapter } from "./model";
-export const MAX_FILE = 20 * 1024 * 1024;
+export const MAX_FILE = 50 * 1024 * 1024;
 const MAX_EXTRACTED = 30 * 1024 * 1024;
+const MAX_ARCHIVE = 150 * 1024 * 1024;
 export function extractHtml(html: string): string {
   const doc = new DOMParser().parseFromString(html, "text/html");
   doc
@@ -35,8 +37,8 @@ async function safeZip(bytes: ArrayBuffer) {
       (f as unknown as { _data?: { uncompressedSize?: number } })._data
         ?.uncompressedSize || 0;
     total += size;
-    if (total > MAX_EXTRACTED)
-      throw new Error("Tệp nén giải nén quá lớn (tối đa 30 MB).");
+    if (total > MAX_ARCHIVE)
+      throw new Error("Tệp nén giải nén quá lớn (tối đa 150 MB).");
   }
   if (Object.keys(zip.files).length > 5000)
     throw new Error("Tệp có quá nhiều thành phần.");
@@ -46,14 +48,21 @@ export async function importDocument(
   file: File | null,
   text: string,
   meta: { title: string; author: string; language: Lang; genre: string },
+  options?: { pdfPages: PdfTextPage[] },
 ): Promise<Book> {
-  if (file && file.size > MAX_FILE) throw new Error("Tệp tối đa 20 MB.");
+  if (file && file.size > MAX_FILE) throw new Error("Tệp tối đa 50 MB.");
   const bytes = file
     ? await file.arrayBuffer()
     : new TextEncoder().encode(text).buffer;
   const ext = file?.name.split(".").pop()?.toLowerCase();
   let chapters: Chapter[] = [];
-  if (ext === "epub") {
+  if (ext === "pdf") {
+    if (!options?.pdfPages?.length) throw new Error("Hãy trích xuất và kiểm tra PDF trước khi lưu.");
+    chapters = options.pdfPages.filter(p => p.text.trim()).map(p => ({
+      id: id(), title: `Trang ${p.page}`, sourcePage: p.page, ocr: p.ocr,
+      paragraphs: textChapters(p.text).flatMap(c => c.paragraphs),
+    }));
+  } else if (ext === "epub") {
     const zip = await safeZip(bytes);
     if (zip.file("META-INF/encryption.xml"))
       throw new Error("EPUB có khai báo mã hóa; ứng dụng không mở tệp có DRM.");
@@ -143,7 +152,7 @@ export async function importDocument(
     );
   else
     throw new Error(
-      "Giai đoạn 1 hỗ trợ EPUB, TXT UTF-8, DOCX và HTML. PDF/OCR thuộc giai đoạn 3.",
+      "Hỗ trợ PDF, EPUB, TXT UTF-8, DOCX và HTML.",
     );
   if (!chapters.length || !chapters.some((c) => c.paragraphs.length))
     throw new Error("Không trích xuất được văn bản.");

@@ -1,6 +1,6 @@
 import { ReviewPanel } from "./ReviewPanel";
 import { ParentPinSettings, ParentUnlock, enterChildLock } from "./ParentLock";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   BookOpen,
   Library,
@@ -52,7 +52,9 @@ import {
   type Child,
   type Paragraph,
 } from "./model";
-import { importDocument } from "./importer";
+import { importDocument, MAX_FILE } from "./importer";
+import type { PdfTextPage, PdfProgress } from "./pdf";
+const PdfPageView = lazy(() => import("./PdfPageView"));
 import * as store from "./store";
 
 type Page = "library" | "vocabulary" | "children" | "settings";
@@ -1200,7 +1202,8 @@ export default function App() {
           onImport={async (book, file) => {
             if (
               books.some(
-                (b) => b.hash === book.hash && b.language === book.language,
+                (b) => b.hash === book.hash && b.language === book.language &&
+                  b.chapters.map(c => c.sourcePage || 0).join(",") === book.chapters.map(c => c.sourcePage || 0).join(","),
               )
             )
               throw new Error("Tài liệu này đã có trong thư viện.");
@@ -1309,6 +1312,31 @@ function ImportModal({
     [genre, setGenre] = useState(""),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
+  const isPdf = file?.name.toLowerCase().endsWith(".pdf") || false;
+  const [pdfPages, setPdfPages] = useState<PdfTextPage[] | null>(null);
+  const [pdfIndex, setPdfIndex] = useState(0);
+  const [ocrMode, setOcrMode] = useState<"auto" | "always" | "off">("auto");
+  const [firstPage, setFirstPage] = useState(1), [lastPage, setLastPage] = useState("");
+  const [progress, setProgress] = useState<PdfProgress | null>(null);
+  const [extracting, setExtracting] = useState(false);
+  const controller = useRef<AbortController | null>(null);
+  useEffect(() => () => controller.current?.abort(), []);
+  function resetPdf() { setPdfPages(null); setPdfIndex(0); setProgress(null); setError(""); }
+  async function processPdf() {
+    if (!file || busy) return;
+    if (file.size > MAX_FILE) { setError("Tệp tối đa 50 MB."); return; }
+    setBusy(true); setExtracting(true); setError(""); setPdfPages(null); setPdfIndex(0);
+    controller.current = new AbortController();
+    try {
+      const { extractPdf } = await import("./pdf");
+      const result = await extractPdf(file, { language, mode: ocrMode, start: firstPage,
+        end: lastPage.trim() ? Number(lastPage) : undefined,
+        signal: controller.current.signal, onProgress: setProgress });
+      setPdfPages(result.pages);
+      setProgress(null);
+    } catch (e) { setError((e as Error).name === "AbortError" ? "Đã hủy. Tệp gốc chưa được lưu; bạn có thể chọn khoảng trang và thử lại." : errorText(e)); }
+    finally { setBusy(false); setExtracting(false); controller.current = null; }
+  }
   async function submit() {
     setBusy(true);
     setError("");
@@ -1318,7 +1346,7 @@ function ImportModal({
         author,
         language,
         genre,
-      });
+      }, isPdf && pdfPages ? { pdfPages } : undefined);
       await onImport(
         book,
         file || new Blob([text], { type: "text/plain;charset=utf-8" }),
@@ -1337,25 +1365,28 @@ function ImportModal({
       }}
     >
       <p className="muted">
-        Tệp gốc được giữ riêng. Nội dung chỉ gửi ra ngoài khi bạn chủ động dịch.
+        Tệp gốc được giữ riêng. PDF/OCR xử lý trên thiết bị; khi dùng chế độ cloud, tệp gốc và văn bản sẽ được lưu vào tài khoản của bạn.
       </p>
       <label className="dropzone">
         <Upload size={30} />
         <strong>{file ? file.name : "Chọn tệp sách của bạn"}</strong>
-        <span>EPUB, TXT UTF-8, DOCX, HTML · Tối đa 20 MB</span>
+        <span>PDF, EPUB, TXT UTF-8, DOCX, HTML · Tối đa 50 MB</span>
         <input
           type="file"
           aria-label="Tệp sách"
-          accept=".epub,.txt,.docx,.html,.htm"
+          accept=".pdf,.epub,.txt,.docx,.html,.htm"
+          disabled={busy}
           onChange={(e) => {
             const f = e.target.files?.[0] || null;
+            resetPdf(); setFirstPage(1); setLastPage("");
             setFile(f);
+            if (f && f.size > MAX_FILE) setError("Tệp tối đa 50 MB.");
             if (f && !title) setTitle(f.name.replace(/\.[^.]+$/, ""));
           }}
         />
       </label>
       {file ? (
-        <button className="text-button" onClick={() => setFile(null)}>
+        <button className="text-button" disabled={busy} onClick={() => { setFile(null); resetPdf(); }}>
           Dùng văn bản dán thay thế
         </button>
       ) : (
@@ -1386,7 +1417,7 @@ function ImportModal({
         <LanguageSelect
           label="Ngôn ngữ nguyên bản"
           value={language}
-          onChange={setLanguage}
+          onChange={v => { if (!busy) { setLanguage(v); resetPdf(); } }}
         />
         <label>
           Thể loại
@@ -1397,6 +1428,32 @@ function ImportModal({
           />
         </label>
       </div>
+      {isPdf && <section className="pdf-import" aria-label="Nhập PDF và OCR">
+        <h3>PDF & nhận dạng chữ</h3>
+        <p>Chọn ngôn ngữ nguyên bản bên trên. OCR hỗ trợ Việt, Anh và Trung giản thể; lần đầu cần tải bộ nhận dạng từ website.</p>
+        <label>Cách đọc PDF<select value={ocrMode} disabled={busy} onChange={e => { setOcrMode(e.target.value as typeof ocrMode); resetPdf(); }}>
+          <option value="auto">Tự động: OCR trang có ít hoặc không có chữ</option>
+          <option value="off">Chỉ lấy lớp chữ có sẵn (không OCR)</option>
+          <option value="always">OCR tất cả trang đã chọn</option>
+        </select></label>
+        <div className="form-grid">
+          <label>Từ trang<input type="number" min={1} value={firstPage} disabled={busy} onChange={e => { setFirstPage(Number(e.target.value)); resetPdf(); }} /></label>
+          <label>Đến trang<input type="number" min={firstPage} placeholder="Để trống: hết tài liệu" value={lastPage} disabled={busy} onChange={e => { setLastPage(e.target.value); resetPdf(); }} /></label>
+        </div>
+        <p className="muted">Mỗi lượt tối đa 200 trang, trong đó tối đa 50 trang OCR. Bản gốc vẫn được giữ đầy đủ.</p>
+        <button disabled={busy || !file || file.size > MAX_FILE} onClick={() => void processPdf()}>{pdfPages ? "Trích xuất lại PDF" : "Đọc PDF / OCR"}</button>
+        {extracting && <button onClick={() => controller.current?.abort()}>Hủy xử lý</button>}
+        {extracting && <div role="status"><p>{progress ? `${progress.stage} · trang ${progress.page}/${progress.total}` : "Đang mở PDF…"}</p><progress aria-label="Tiến độ PDF" max={1} value={progress?.fraction || 0} /></div>}
+        {pdfPages && pdfPages.length > 0 && <>
+          <label>Trang để kiểm tra<select value={pdfIndex} onChange={e => setPdfIndex(Number(e.target.value))} disabled={busy}>
+            {pdfPages.map((p, i) => <option value={i} key={p.page}>Trang {p.page}{p.ocr ? " · OCR" : " · có chữ"}{!p.text.trim() ? " · trống" : ""}</option>)}
+          </select></label>
+          <p>{pdfPages.length} trang đã xử lý. Trang trống không được thêm vào phần đọc. Hãy kiểm tra dấu, thứ tự cột và ngắt dòng; OCR có thể nhận sai.</p>
+          {pdfPages[pdfIndex].ocr && <p>Kết quả OCR{pdfPages[pdfIndex].confidence !== undefined ? ` · độ tin cậy ước tính ${Math.round(pdfPages[pdfIndex].confidence!)}%` : ""} — không phải điểm độ chính xác.</p>}
+          <Suspense fallback={<p>Đang mở trang gốc…</p>}><PdfPageView file={file!} page={pdfPages[pdfIndex].page} /></Suspense>
+          <label>Văn bản trang {pdfPages[pdfIndex].page}<textarea aria-label="Văn bản PDF đã trích xuất" rows={8} value={pdfPages[pdfIndex].text} disabled={busy} onChange={e => setPdfPages(pdfPages.map((p, i) => i === pdfIndex ? { ...p, text: e.target.value } : p))} /></label>
+        </>}
+      </section>}
       <p className="muted">
         Chỉ nhập tài liệu bạn có quyền sử dụng. Ngôn ngữ gốc giữ nguyên; không
         tự chuyển sang tiếng Việt.
@@ -1408,7 +1465,7 @@ function ImportModal({
       )}
       <button
         className="primary wide"
-        disabled={busy || (!file && !text.trim())}
+        disabled={busy || (!file && !text.trim()) || !!file && file.size > MAX_FILE || isPdf && !pdfPages?.some(p => p.text.trim())}
         onClick={() => void submit()}
       >
         {busy ? "Đang trích xuất và lưu…" : "Nhập & lưu sách"}{" "}
@@ -1458,6 +1515,8 @@ function Reader({
     [consent, setConsent] = useState(false),
     [speaking, setSpeaking] = useState(false),
     [speechRate, setSpeechRate] = useState(1),
+    [sourcePdf, setSourcePdf] = useState<Blob | null>(null),
+    [sourceLoading, setSourceLoading] = useState(false),
     [metadata, setMetadata] = useState(false),
     [newTitle, setNewTitle] = useState(book.title),
     [newAuthor, setNewAuthor] = useState(book.author);
@@ -1634,6 +1693,9 @@ function Reader({
   }
   return (
     <div className={`reader theme-${theme}`}>
+      {sourcePdf && <Modal title={`PDF gốc · trang ${book.chapters[chapter].sourcePage}`} onClose={() => setSourcePdf(null)}>
+        <Suspense fallback={<p>Đang mở PDF…</p>}><PdfPageView file={sourcePdf} page={book.chapters[chapter].sourcePage!} /></Suspense>
+      </Modal>}
       <div className="reader-header">
         <button
           onClick={() => {
@@ -1650,6 +1712,12 @@ function Reader({
             {book.author} · {languages[book.language]}
           </p>
         </div>
+        {book.chapters[chapter].sourcePage && <button disabled={sourceLoading} onClick={async () => {
+          setSourceLoading(true);
+          try { const original = await store.getOriginal(book, cloud); if (!original) throw new Error("Không tìm thấy tệp PDF gốc."); setSourcePdf(original); }
+          catch (e) { notify(errorText(e)); }
+          finally { setSourceLoading(false); }
+        }}>Đối chiếu PDF gốc</button>}
         <button
           aria-label="Chỉnh thông tin sách"
           onClick={() => setMetadata(true)}

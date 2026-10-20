@@ -1,0 +1,2 @@
+-- Raise only the existing private bucket limit; retain its MIME and access policies.
+update storage.buckets set file_size_limit = 52428800 where id = 'originals';

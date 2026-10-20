@@ -10,7 +10,7 @@ export default defineConfig({
       apply: "build",
       async closeBundle() {
         const assets = (await readdir("dist/assets"))
-          .filter((f) => /\.(js|css|woff2?)$/.test(f))
+          .filter((f) => /\.(m?js|css|woff2?)$/.test(f))
           .map((f) => `/assets/${f}`)
           .sort();
         const hash = createHash("sha256")

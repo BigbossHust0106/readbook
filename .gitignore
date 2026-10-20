@@ -9,3 +9,7 @@ test-results/
 playwright-report/
 *.local
 *.tsbuildinfo
+
+# Generated from pinned dependencies by prebuild/predev
+public/ocr/
+public/pdf/

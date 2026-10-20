@@ -34,7 +34,8 @@
 - ⏳ Queue nền bền vững: lease, retry giới hạn, pause/cancel/resume, tiến độ/notifications, không trùng request sau kết quả mơ hồ; tách sách lớn theo chương ở DB.
 - ⏳ Nhà cung cấp chính thức bổ sung (DeepL/Google/AI/local model sau xác minh): capability, free-quota/cost controls, không tự phí/chuyển nhà cung cấp.
 - ⏳ Dịch đoạn/chương/toàn sách/khi đọc, style, ngữ cảnh hai bên, nhân vật/xưng hô/glossary, metadata source/version; so sánh khi được yêu cầu; advanced proofreading; QA thiếu/lặp/ngôn ngữ/số/thuật ngữ; dễ đọc là chức năng riêng có nhãn.
-- ⏳ PDF text và trang gốc đối chiếu; OCR ảnh/PDF scan, sửa kết quả, tiến độ và lỗi, không hứa giữ mọi bố cục. Không xử lý nặng bên trong request Worker.
+- ✅ PDF có chữ và PDF scan: PDF.js/Tesseract chạy trên thiết bị, tự tải engine/model từ cùng website; chọn khoảng trang, tự động/OCR tất cả/chỉ lớp chữ, tiến độ, hủy, sửa văn bản trước khi lưu, đối chiếu trang gốc trong trình đọc. Việt/Anh/Trung giản thể; 50 MB/tệp, 200 trang/lượt và tối đa 50 trang OCR/lượt. Giữ nguyên PDF gốc.
+- ⏳ Nhập ảnh rời, tự xoay/dewarp, bảng/nhiều cột và hiệu chỉnh bố cục nâng cao; OCR job nền và resume bền vững. Không hứa giữ mọi bố cục.
 - ⏳ Căn chỉnh bản dịch nhập sẵn; rich illustrations/metadata sau nhập; series/tập/chương và theo dõi chương mới ở nguồn hỗ trợ.
 - ⏳ Online providers/API/OPDS/RSS chính thức; metadata khác full-text, phân quyền/bản quyền rõ; lọc ba ngôn ngữ, tác giả/thể loại/tuổi/trình độ/độ dài; URL import theo allowlist chống SSRF/redirect/DNS rebinding, không DRM/paywall.
 - ✅ SRS cơ bản: hiện nghĩa, tự đánh giá chưa nhớ/còn khó/đã nhớ, lịch 10 phút/ngày, lưu cùng từ vựng local/cloud.

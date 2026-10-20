@@ -99,3 +99,13 @@ Playwright dùng `/usr/bin/chromium` nếu có; hoặc Chromium đã cài bởi 
 ## Bổ sung ngày 20/10/2026
 
 Noto Sans có dấu tiếng Việt, tự lưu và cache offline. Sổ từ có ôn theo lịch tự đánh giá (10 phút / ngày). Góc trẻ có lịch sử 100 buổi gần nhất và PIN phụ huynh trên trình duyệt; reload phiên trẻ yêu cầu PIN trước khi mở ứng dụng. Lịch ôn và buổi luyện đi cùng JSON của từ/hồ sơ, tương thích dữ liệu cũ, không cần migration mới. PIN không đồng bộ cloud và không thay thế xác thực tài khoản.
+
+## PDF, OCR và giới hạn tệp
+
+Tệp sách tối đa **50 MB (52.428.800 byte)** ở cả local và bucket Supabase `originals`. Migration bổ sung: `supabase/migrations/202610200002_originals_50mb.sql` (đã áp dụng lên project hiện có). Giới hạn global storage của project cũng đã xác nhận là 50 MB; không thay đổi gói. Tệp EPUB/DOCX giải nén tối đa 150 MB, văn bản trích xuất tối đa 30 MB; CSV vẫn 5 MB và backup JSON vẫn 100 MB.
+
+Trong **Thêm sách**, chọn PDF → chọn ngôn ngữ nguyên bản và khoảng trang → **Đọc PDF / OCR** → đối chiếu trang gốc, sửa văn bản → **Nhập & lưu sách**. Mặc định OCR trang có dưới 10 ký tự không phải khoảng trắng; chọn OCR tất cả nếu trang có lớp chữ không đầy đủ. Hỗ trợ Việt/Anh/Trung giản thể. Chỉ số tin cậy OCR là ước tính của engine. Không có cam kết độ chính xác hoặc giữ bố cục nhiều cột/bảng. PDF có mật khẩu cần được xuất thành bản không khóa.
+
+Mỗi lượt tối đa 200 trang, trong đó tối đa 50 trang OCR; chọn từng khoảng với sách dài. Tệp gốc vẫn đầy đủ, từng chương nhớ số trang gốc. Có thể nhập các khoảng khác nhau của cùng PDF. Trong trình đọc dùng **Đối chiếu PDF gốc**.
+
+OCR chạy trong browser worker, không gọi API tính phí và không gửi trang scan ra dịch vụ OCR. Ở chế độ cloud, sách/văn bản và PDF gốc vẫn được lưu vào tài khoản Supabase như các định dạng khác. Engine, WASM và model được tự lưu bởi `scripts/prepare-document-assets.mjs`, tự chạy trước dev/build; không commit các tệp nhị phân được tạo. Service worker cache engine/model sau khi dùng; lần đầu cần mạng. Hiệu năng phụ thuộc RAM/CPU của thiết bị, nên chọn khoảng ngắn trên điện thoại.

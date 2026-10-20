@@ -39,6 +39,8 @@ self.addEventListener("fetch", (event) => {
     );
   else if (
     url.pathname.startsWith("/assets/") ||
+    url.pathname.startsWith("/pdf/") ||
+    url.pathname.startsWith("/ocr/") ||
     ["/icon.svg", "/manifest.webmanifest"].includes(url.pathname)
   )
     event.respondWith(

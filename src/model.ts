@@ -18,7 +18,7 @@ export type Paragraph = {
   note?: string;
   highlight?: boolean;
 };
-export type Chapter = { id: string; title: string; paragraphs: Paragraph[] };
+export type Chapter = { sourcePage?: number; ocr?: boolean; id: string; title: string; paragraphs: Paragraph[] };
 export type Book = {
   id: string;
   title: string;
@@ -171,6 +171,8 @@ export function assertBook(value: unknown): asserts value is Book {
   const ids = new Set<string>();
   for (const c of b.chapters) {
     if (
+      (c.sourcePage !== undefined && (!Number.isInteger(c.sourcePage) || c.sourcePage < 1)) ||
+      (c.ocr !== undefined && typeof c.ocr !== "boolean") ||
       !string(c.id) ||
       ids.has(c.id) ||
       !string(c.title) ||

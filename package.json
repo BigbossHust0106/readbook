@@ -11,17 +11,25 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "check": "tsc -b",
-    "build:preview": "tsc -b && vite build --mode preview"
+    "build:preview": "tsc -b && vite build --mode preview",
+    "prebuild": "node scripts/prepare-document-assets.mjs",
+    "predev": "node scripts/prepare-document-assets.mjs",
+    "prebuild:preview": "node scripts/prepare-document-assets.mjs"
   },
   "dependencies": {
     "@fontsource/noto-sans": "^5.3.0",
     "@supabase/supabase-js": "^2.89.0",
+    "@tesseract.js-data/chi_sim": "^1.0.0",
+    "@tesseract.js-data/eng": "^1.0.0",
+    "@tesseract.js-data/vie": "^1.0.0",
     "idb": "^8.0.3",
     "jszip": "^3.10.1",
     "lucide-react": "^0.468.0",
     "papaparse": "^5.5.3",
+    "pdfjs-dist": "^6.4.299",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.10",
@@ -31,12 +39,13 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^4.7.0",
+    "pdf-lib": "^1.17.1",
     "typescript": "^5.9.3",
     "vite": "^6.4.1",
     "vitest": "^3.2.4",
     "wrangler": "^4.59.0"
   },
   "engines": {
-    "node": ">=22.12"
+    "node": ">=22.13"
   }
 }
