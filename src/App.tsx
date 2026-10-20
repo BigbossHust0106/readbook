@@ -1,3 +1,5 @@
+import { ReviewPanel } from "./ReviewPanel";
+import { ParentPinSettings, ParentUnlock, enterChildLock } from "./ParentLock";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   BookOpen,
@@ -883,6 +885,7 @@ export default function App() {
                     <Download size={17} /> Xuất CSV
                   </button>
                 </div>
+                <ReviewPanel words={words} onSave={saveWords} />
                 <div className="panel">
                   <div className="row">
                     <label className="search">
@@ -2238,6 +2241,23 @@ function ChildrenPanel({
     [sentence, setSentence] = useState(0),
     [audio, setAudio] = useState<string | null>(null),
     [recording, setRecording] = useState(false);
+  const [savingPractice, setSavingPractice] = useState(false);
+  const practice = useRef({ id: id(), started: Date.now() });
+  async function finishPractice() {
+    if (!child || !chosen || savingPractice) return;
+    setSavingPractice(true);
+    try {
+      const entry = { id: practice.current.id, bookTitle: chosen.title,
+        completedAt: new Date().toISOString(), sentences: sentence + 1,
+        seconds: Math.max(0, Math.round((Date.now() - practice.current.started) / 1000)) };
+      await onSave(children.map(c => c.id === child.id ? { ...c,
+        practice: [...(c.practice || []).filter(p => p.id !== entry.id), entry].slice(-100) } : c));
+      if ("speechSynthesis" in window) speechSynthesis.cancel();
+      setChosen(null); setAudio(null);
+      notify("Đã lưu buổi luyện đọc.");
+    } catch (e) { notify(errorText(e)); }
+    finally { setSavingPractice(false); }
+  }
   const mounted = useRef(true);
   const recorder = useRef<MediaRecorder | null>(null),
     stream = useRef<MediaStream | null>(null),
@@ -2317,6 +2337,7 @@ function ChildrenPanel({
         <h1>{chosen ? chosen.title : "Hôm nay mình đọc gì nhỉ?"}</h1>
         {chosen ? (
           <>
+            <p>Câu {sentence + 1} / {sentences.length}</p>
             <p className="practice-sentence" lang={chosen.language}>
               {sentences[sentence]}
             </p>
@@ -2372,8 +2393,11 @@ function ChildrenPanel({
               Không chấm điểm phát âm. Phụ huynh có thể nghe và cùng con luyện
               lại.
             </p>
+            <button className="primary" disabled={recording || savingPractice} onClick={() => void finishPractice()}>
+              Hoàn thành buổi luyện
+            </button>
             <button
-              disabled={recording}
+              disabled={recording || savingPractice}
               onClick={() => {
                 speechSynthesis.cancel();
                 setChosen(null);
@@ -2389,6 +2413,7 @@ function ChildrenPanel({
               <button
                 key={b.id}
                 onClick={() => {
+                  practice.current = { id: id(), started: Date.now() };
                   setChosen(b);
                   setSentence(0);
                 }}
@@ -2405,21 +2430,10 @@ function ChildrenPanel({
         )}
         <details className="parent-return">
           <summary>Khu vực phụ huynh</summary>
-          <p>
-            Chế độ trẻ là bộ lọc nội dung trong phiên, chưa phải khóa phụ huynh
-            bằng PIN.
-          </p>
-          <button
-            disabled={recording}
-            onClick={() => {
-              speechSynthesis.cancel();
-              setChildMode(false);
-              setChosen(null);
-              setAudio(null);
-            }}
-          >
-            Về quản lý hồ sơ
-          </button>
+          {!recording && !savingPractice && <ParentUnlock onUnlock={() => {
+            if ("speechSynthesis" in window) speechSynthesis.cancel();
+            setChildMode(false); setChosen(null); setAudio(null);
+          }} />}
         </details>
       </div>
     );
@@ -2581,13 +2595,21 @@ function ChildrenPanel({
                   </span>
                 </label>
               ))}
-              <button className="primary" onClick={() => setChildMode(true)}>
+              <button className="primary" onClick={() => { enterChildLock(); setChildMode(true); }}>
                 <Play size={17} /> Mở góc đọc của {child.nickname}
               </button>
             </>
           )}
         </section>
       </div>
+      <ParentPinSettings />
+      <section className="panel">
+        <h2>Lịch sử luyện đọc{child ? ` · ${child.nickname}` : ""}</h2>
+        <p>Ghi nhận khi bấm hoàn thành; số câu là tiến độ tự xác nhận, không phải điểm phát âm. Giữ tối đa 100 buổi gần nhất mỗi hồ sơ.</p>
+        {child?.practice?.length ? <ul>{[...child.practice].reverse().map(p => <li key={p.id}>
+          <strong>{p.bookTitle}</strong> · {p.sentences} câu · {Math.max(1, Math.round(p.seconds / 60))} phút · {new Date(p.completedAt).toLocaleString("vi-VN")}
+        </li>)}</ul> : <p>Chưa có buổi luyện đã hoàn thành.</p>}
+      </section>
     </>
   );
 }

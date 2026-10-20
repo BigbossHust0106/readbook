@@ -13,7 +13,7 @@
   "observability": { "enabled": false },
   "env": {
     "production": {
-      "name": "lasach-readbook",
+      "name": "readbook",
       "vars": { "TRANSLATION_ENABLED": "false", "LOCAL_TRANSLATION": "false" },
     },
   },

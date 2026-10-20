@@ -1,6 +1,6 @@
 :root {
   font-family:
-    Inter,
+    "Noto Sans",
     -apple-system,
     BlinkMacSystemFont,
     "Segoe UI",
@@ -86,11 +86,11 @@ p {
   margin-top: 0;
 }
 h1 {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: "Noto Sans", sans-serif;
   font-size: 37px;
   font-weight: 500;
   line-height: 1.25;
-  letter-spacing: -1px;
+  letter-spacing: normal;
   margin-bottom: 10px;
 }
 h2 {
@@ -128,10 +128,10 @@ small {
   gap: 10px;
   color: #285c4a;
   text-decoration: none;
-  font-family: Georgia, serif;
+  font-family: "Noto Sans", sans-serif;
   font-size: 31px;
   font-weight: bold;
-  letter-spacing: -1px;
+  letter-spacing: normal;
   padding-left: 10px;
 }
 .brand-icon {
@@ -206,7 +206,7 @@ small {
   pointer-events: none;
 }
 .sidebar-note h3 {
-  font-family: Georgia, serif;
+  font-family: "Noto Sans", sans-serif;
   font-weight: 500;
   font-size: 22px;
   line-height: 1.4;
@@ -288,7 +288,7 @@ small {
   width: 33px;
   height: 33px;
   padding: 0;
-  font-family: Georgia, serif;
+  font-family: "Noto Sans", sans-serif;
 }
 .content {
   max-width: 1430px;
@@ -356,11 +356,11 @@ small {
   background: #f5f7ed;
 }
 .hero h2 {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: "Noto Sans", sans-serif;
   font-weight: 500;
   font-size: 35px;
   line-height: 1.2;
-  letter-spacing: -0.7px;
+  letter-spacing: normal;
   color: #31553e;
   margin: 16px 0 14px;
 }
@@ -428,7 +428,7 @@ small {
   justify-content: center;
   color: #eff3e4;
   font-size: 39px;
-  font-family: serif;
+  font-family: "Noto Sans", sans-serif;
 }
 .book-front {
   background: #f9f6e9;
@@ -439,7 +439,7 @@ small {
   color: #5a7152;
 }
 .book-art-line {
-  font-family: Georgia, serif;
+  font-family: "Noto Sans", sans-serif;
   font-size: 15px;
   line-height: 1.25;
   display: block;
@@ -473,7 +473,7 @@ small {
   background: #ffffffdc;
   border-radius: 9px;
   padding: 8px 15px;
-  font-family: Georgia, serif;
+  font-family: "Noto Sans", sans-serif;
   font-size: 18px;
   color: #59734a;
   transform: rotate(7deg);
@@ -550,7 +550,7 @@ small {
   gap: 15px;
 }
 .section-title h2 {
-  font-family: Georgia, serif;
+  font-family: "Noto Sans", sans-serif;
   font-weight: 500;
   font-size: 23px;
   margin: 0;
@@ -671,7 +671,7 @@ small {
   padding-bottom: 12px;
 }
 .book-cover h3 {
-  font-family: Georgia, serif;
+  font-family: "Noto Sans", sans-serif;
   font-size: 25px;
   line-height: 1.25;
   font-weight: 500;
@@ -791,7 +791,7 @@ small {
   margin-bottom: 5px;
 }
 .empty h3 {
-  font-family: Georgia, serif;
+  font-family: "Noto Sans", sans-serif;
   font-weight: 500;
   font-size: 23px;
   margin: 4px 0;
@@ -833,7 +833,7 @@ small {
   align-items: center;
   gap: 10px;
   margin-bottom: 18px;
-  font-family: Georgia, serif;
+  font-family: "Noto Sans", sans-serif;
   font-size: 22px;
   font-weight: 500;
 }
@@ -910,7 +910,7 @@ small {
   margin-bottom: 20px;
 }
 .modal > header h2 {
-  font-family: Georgia, serif;
+  font-family: "Noto Sans", sans-serif;
   font-size: 25px;
   font-weight: 500;
   margin: 0;
@@ -999,7 +999,7 @@ small {
 }
 .word-row strong {
   font-size: 20px;
-  font-family: Georgia, serif;
+  font-family: "Noto Sans", sans-serif;
 }
 .word-row p {
   margin: 4px 0 7px;
@@ -1129,7 +1129,7 @@ td {
   margin: 24px 0;
 }
 .reader-subhead h2 {
-  font-family: Georgia, serif;
+  font-family: "Noto Sans", sans-serif;
   font-weight: 500;
   font-size: 25px;
 }
@@ -1155,7 +1155,7 @@ td {
   gap: 32px;
 }
 .paragraph p {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: "Noto Sans", sans-serif;
   font-size: 1em;
   line-height: 1.9;
   color: inherit;
@@ -1240,7 +1240,7 @@ td {
 }
 .source-preview,
 blockquote {
-  font-family: Georgia, serif;
+  font-family: "Noto Sans", sans-serif;
   padding: 15px;
   background: #edf2e6;
   border-radius: 7px;
@@ -1322,7 +1322,7 @@ blockquote {
   font-size: 32px;
   max-width: 800px;
   margin: 40px auto;
-  font-family: Georgia, serif;
+  font-family: "Noto Sans", sans-serif;
   color: #344f3d;
   line-height: 1.9;
 }

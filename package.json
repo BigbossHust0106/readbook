@@ -7,13 +7,14 @@
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
     "preview": "node scripts/wrangler.mjs dev",
-    "deploy": "npm run build && node scripts/wrangler.mjs deploy --env production",
+    "deploy": "npm run build && node scripts/wrangler.mjs deploy --env production --keep-vars",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "check": "tsc -b",
     "build:preview": "tsc -b && vite build --mode preview"
   },
   "dependencies": {
+    "@fontsource/noto-sans": "^5.3.0",
     "@supabase/supabase-js": "^2.89.0",
     "idb": "^8.0.3",
     "jszip": "^3.10.1",

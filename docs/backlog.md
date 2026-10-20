@@ -10,20 +10,23 @@
 - ✅ Bản dịch thủ công, khóa, lịch sử; chọn từ/cụm có ngữ cảnh, trạng thái học; CSV có preview/mapping và báo cáo trùng.
 - ✅ Kệ đang đọc/đọc sau/yêu thích/hoàn thành, tìm metadata/ngôn ngữ, sao lưu gồm originals.
 - 🔌 Dịch thật LibreTranslate, sample/chương, chỉ cặp có model, consent và xử lý 429. Cần endpoint và kiểm thử sáu chiều thực sự; không cam kết model VI tồn tại.
-- 🔌 Supabase Auth/private Storage/RLS; tài khoản độc lập, tải lại trên thiết bị khác. Cần project mới và nghiệm thu live.
-- 🔌 Cloudflare Worker/Static Assets: chạy local, chưa tạo/deploy trên tài khoản người dùng.
+- 🔌 Supabase Auth/private Storage/RLS; tài khoản độc lập, tải lại trên thiết bị khác. Project hiện có đã xác nhận bảng/RLS/bucket riêng tư; còn nghiệm thu hai tài khoản qua Auth/Storage live.
+- ✅ Cloudflare Worker/Static Assets: cấu hình production trỏ Worker hiện có `readbook`. Xem ngày nghiệm thu trong `validation.md`.
 - ✅ Fallback Hanzii sao chép và mở homepage; ⏳ xác minh deep link/API/OAuth, Pro, CSV Hanzii chính thức.
 - ⏳ Nhập đồng thời bản gốc/bản dịch có sẵn và căn chỉnh bằng UI; sửa bìa/mục lục/ngôn ngữ/thể loại sau nhập; bookmark nhiều vị trí riêng.
 - ⏳ Tra popup có từ điển thực, phonetics, pinyin, giản/phồn, giải nghĩa chọn ngôn ngữ; hiện chỉ lưu nghĩa nhập tay và TTS.
-- ⏳ Font family, lề, khoảng dòng, chiều rộng, lật trang, chạm hiện nghĩa; tìm toàn sách, timer đọc bền vững, câu hay và chọn nhiều từ rời.
+- ✅ Noto Sans tự lưu với bộ ký tự Việt/Latin, precache offline.
+- ⏳ Chọn font family, lề, khoảng dòng, chiều rộng, lật trang, chạm hiện nghĩa; tìm toàn sách, timer đọc bền vững, câu hay và chọn nhiều từ rời.
 
 ## Giai đoạn 2 — trẻ em và nghe đọc
 
 - ✅ Phần nền: nhiều hồ sơ phụ huynh, nickname/tuổi/mức đọc, tiếng Việt mặc định và bật Trung/Anh, phê duyệt sách, câu ngắn, nghe mẫu và thu âm nghe lại trong RAM.
-- ⏳ PIN và khóa khu vực phụ huynh, session trẻ có phạm vi quyền riêng nếu cần; giáo trình được biên soạn cho từng năng lực, chữ/âm/vần/tiếng Việt đã duyệt chuyên môn.
+- ✅ PIN 4–8 số trên trình duyệt: PBKDF2, kiểm tra khi về quản lý và khi tải lại phiên trẻ; chờ 5 giây sau PIN sai. Không phải tài khoản/quyền máy chủ riêng cho trẻ.
+- ⏳ Session trẻ có phạm vi quyền riêng nếu cần; giáo trình được biên soạn cho từng năng lực, chữ/âm/vần/tiếng Việt đã duyệt chuyên môn.
 - ⏳ Thư viện trẻ nguồn hợp pháp, lọc độ tuổi/mức đọc/chủ đề/thời lượng, minh họa và nội dung được duyệt.
 - ⏳ Các mode luân phiên phụ huynh, đọc hiểu, kể lại; highlights theo audio timing, lặp và khoảng nghỉ, cloud TTS có cấu hình; ưu tiên Việt.
-- ⏳ Thống kê buổi/thời gian/bài, từ cần luyện, mục tiêu/ngủ/nhắc ôn, huy hiệu không xếp hạng, giới hạn thời gian; lưu/xóa recording chỉ khi consent, retention.
+- ✅ Lưu tối đa 100 buổi luyện/hồ sơ: sách, số câu tự xác nhận, thời lượng và thời điểm; lưu cùng hồ sơ local/cloud.
+- ⏳ Từ cần luyện, mục tiêu/ngủ/nhắc ôn, huy hiệu không xếp hạng, giới hạn thời gian; lưu/xóa recording chỉ khi consent, retention.
 - ⏳ Nhập audiobook/subtitle, căn thời gian, playback nền/lock screen khi hỗ trợ, giọng Anh–Mỹ/Anh–Anh thực tế; không cam kết trên mọi nền tảng.
 
 ## Giai đoạn 3 — ngữ cảnh, OCR/PDF, SRS và đồng bộ
@@ -34,7 +37,8 @@
 - ⏳ PDF text và trang gốc đối chiếu; OCR ảnh/PDF scan, sửa kết quả, tiến độ và lỗi, không hứa giữ mọi bố cục. Không xử lý nặng bên trong request Worker.
 - ⏳ Căn chỉnh bản dịch nhập sẵn; rich illustrations/metadata sau nhập; series/tập/chương và theo dõi chương mới ở nguồn hỗ trợ.
 - ⏳ Online providers/API/OPDS/RSS chính thức; metadata khác full-text, phân quyền/bản quyền rõ; lọc ba ngôn ngữ, tác giả/thể loại/tuổi/trình độ/độ dài; URL import theo allowlist chống SSRF/redirect/DNS rebinding, không DRM/paywall.
-- ⏳ Tra từ đa nghĩa/ngữ cảnh/lemma/idiom/phrasal verbs; multi-selection; SRS, decks theo sách/ngôn ngữ/chủ đề, CSV Anki đã xác minh; cloze/listening/dịch hai chiều/reading questions.
+- ✅ SRS cơ bản: hiện nghĩa, tự đánh giá chưa nhớ/còn khó/đã nhớ, lịch 10 phút/ngày, lưu cùng từ vựng local/cloud.
+- ⏳ Tra từ đa nghĩa/ngữ cảnh/lemma/idiom/phrasal verbs; multi-selection; decks theo sách/ngôn ngữ/chủ đề, CSV Anki đã xác minh; cloze/listening/dịch hai chiều/reading questions.
 - ✅ PWA shell và đọc local offline; ⏳ tải trước dịch/audio/deck, quản lý dung lượng/eviction/persistent-storage, outbox offline cho cloud, conflict UI, realtime sync.
 - ⏳ Bộ sưu tập/tag/sắp xếp nâng cao; xóa toàn tài khoản và tất cả tệp liên quan, mã hóa thiết bị theo thiết kế threat model, telemetry consent tách riêng.
 - ⏳ Hanzii notebook CSV có schema đã xác minh và log import/export cloud; API/OAuth/Pro chỉ khi nhà cung cấp cho phép. Không scrape cookie/password/API nội bộ.

@@ -34,7 +34,10 @@ export type Book = {
   originalType?: string;
   approvedChildren: string[];
 };
+export type Review = { dueAt: string; intervalDays: number; repetitions: number };
+export type Practice = { id: string; bookTitle: string; completedAt: string; sentences: number; seconds: number };
 export type Word = {
+  review?: Review;
   id: string;
   term: string;
   meaning: string;
@@ -49,6 +52,7 @@ export type Word = {
   createdAt: string;
 };
 export type Child = {
+  practice?: Practice[];
   id: string;
   nickname: string;
   age: number;
@@ -213,6 +217,7 @@ export function assertBook(value: unknown): asserts value is Book {
     throw new Error("Vị trí đọc không hợp lệ.");
 }
 export function assertWord(w: Word) {
+  if (w?.review && (!Number.isFinite(Date.parse(w.review.dueAt)) || !Number.isInteger(w.review.intervalDays) || w.review.intervalDays < 0 || w.review.intervalDays > 365 || !Number.isInteger(w.review.repetitions) || w.review.repetitions < 0)) throw new Error("Lịch ôn không hợp lệ.");
   if (
     !w ||
     typeof w.id !== "string" ||
@@ -233,6 +238,7 @@ export function assertWord(w: Word) {
     throw new Error("Từ vựng không hợp lệ.");
 }
 export function assertChild(c: Child) {
+  if (c?.practice !== undefined && (!Array.isArray(c.practice) || c.practice.length > 100 || c.practice.some(p => !p || typeof p.id !== "string" || typeof p.bookTitle !== "string" || !Number.isFinite(Date.parse(p.completedAt)) || !Number.isInteger(p.sentences) || p.sentences < 1 || !Number.isInteger(p.seconds) || p.seconds < 0))) throw new Error("Lịch sử luyện đọc không hợp lệ.");
   if (
     !c ||
     typeof c.id !== "string" ||

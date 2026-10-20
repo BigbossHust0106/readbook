@@ -1,6 +1,6 @@
 # Kết quả nghiệm thu
 
-Kiểm thử trong môi trường cloud ngày 19/10/2026. Chỉ xác nhận các bước có bằng chứng dưới đây; chưa có project hoặc URL production.
+Cập nhật ngày 20/10/2026. Có website production và project Supabase đang hoạt động. Phân biệt kiểm tra cấu hình hosted với nghiệm thu Auth/Storage end-to-end.
 
 | Phần | Kết quả | Phạm vi |
 |---|---|---|
@@ -9,12 +9,12 @@ Kiểm thử trong môi trường cloud ngày 19/10/2026. Chỉ xác nhận các
 | Mô hình và CSV | 6/6 đạt | Chương/ngôn ngữ/ID, khóa, lịch sử, tiếp tục thiếu đoạn, gộp từ, bảo vệ CSV formula |
 | Worker API | 8/8 đạt | Disabled không gửi nội dung; origin/auth/validation, server-only key, 429 không fallback, missing model, không lộ lỗi/secret |
 | PostgreSQL RLS | 5/5 đạt | Migration chạy bằng PGlite; hai danh tính, quyền SELECT/INSERT/UPDATE/DELETE, chặn đổi chủ, revision, child/vocabulary/events/job và private storage policies |
-| Chromium E2E | 10/10 đạt | Các luồng chi tiết bên dưới |
+| Chromium E2E | 13/13 đạt | Các luồng chi tiết bên dưới |
 | Dependency audit production | Đạt | `npm audit --omit=dev`: 0 vulnerabilities được báo cáo tại thời điểm kiểm tra |
 | Worker runtime local | Đạt | Wrangler/Workerd phục vụ build và API health/capabilities |
 | Giao diện | Đã kiểm tra | 1440px và 390px; kiểm thử không tràn ngang mobile; focus modal, Escape/Tab, giảm hiệu ứng theo hệ thống |
-| Supabase hosted | Chưa chạy | Không có kết nối/tài khoản được cấp trong phiên |
-| Cloudflare deployed HTTPS | Chưa chạy | `wrangler whoami` báo chưa xác thực; không tạo tài nguyên |
+| Supabase hosted | Đã kiểm tra cấu hình | API quản lý: ACTIVE_HEALTHY, bảng/RLS/bucket/Auth URL; còn nghiệm thu hai tài khoản live |
+| Cloudflare deployment | Đạt qua API | Worker `readbook`, version `749a6f36-3cee-4166-ab3b-868627644c08`, 100% traffic; HTTP từ Codex bị 403/1010 |
 | Dịch thực tế 6 chiều | Chưa chạy | Chưa có endpoint/model/API credential |
 | Hanzii trên thiết bị thật | Chưa chạy | Website bị proxy 403; deep link/API/CSV chưa xác minh |
 
@@ -39,11 +39,15 @@ Kiểm thử trong môi trường cloud ngày 19/10/2026. Chỉ xác nhận các
 - Hanzii chỉ có sao chép và mở homepage bằng cơ chế web chuẩn; chưa kiểm tra được trên mobile, chưa có deep link/API/Pro/CSV chính thức.
 - Không có test browser toàn diện cho WCAG/screen reader. Có hỗ trợ thao tác bàn phím và semantic labels; chưa tuyên bố chứng nhận accessibility.
 - Không có durable background worker khi đóng tab. Resume giai đoạn 1 dựa trên bản dịch từng đoạn đã lưu. Chưa nghiệm thu quy mô sách rất dài, dữ liệu nhiều tài khoản hoặc nhiều thiết bị ghi đồng thời ngoài test revision.
-- Chưa có khóa phụ huynh PIN; nút về quản lý hiện rõ. Không tuyên bố đây là sandbox xác thực riêng cho trẻ.
-- Chưa chạy PDF/OCR, nguồn sách online, ngữ cảnh/AI/SRS, audiobook timing, sync offline/cloud outbox hoặc xóa toàn bộ tài khoản. Phạm vi còn lại được giữ tại `backlog.md`.
+- PIN phụ huynh đã có trên trình duyệt: hash PBKDF2 với salt riêng, cooldown sau nhập sai, chặn mở ứng dụng khi reload phiên trẻ. Người có quyền sửa/xóa dữ liệu trình duyệt vẫn có thể bỏ khóa; đây không phải sandbox tài khoản trẻ.
+- Chưa chạy PDF/OCR, nguồn sách online, ngữ cảnh/AI/SRS nâng cao, audiobook timing, sync offline/cloud outbox hoặc xóa toàn bộ tài khoản. Phạm vi còn lại được giữ tại `backlog.md`.
 
-## Cấu hình môi trường đã lưu
+## Kiểm tra cloud ngày 20/10/2026
 
-Draft save đã xác nhận thành công: `install_script`, `start_skill`, hai requirement credential cá nhân `CLOUDFLARE_API_TOKEN` và `SUPABASE_ACCESS_TOKEN`. Tự thêm hai hostname `api.cloudflare.com`, `api.supabase.com` vào mạng hạn chế. Không lưu giá trị secret. Draft cần người dùng review/save trong cài đặt môi trường và publish để có hiệu lực; thao tác này chưa tạo Supabase project hoặc triển khai Cloudflare.
+Hai credential Cloudflare/Supabase đã sẵn sàng và API quản lý đều trả kết quả thành công. Project `sddqnjefltipcpgypsun` ACTIVE_HEALTHY; books, children, vocabulary, translation_jobs, integration_events đều bật RLS; bucket originals private. Auth site_url là https://readbook.manhhuong.workers.dev/. Worker hiện có `readbook` dùng Static Assets và tắt dịch máy. Không tạo tài nguyên mới hay thay đổi schema.
 
-Endpoint dịch tự quản lý và quyền tạo tài nguyên miễn phí vẫn là điều kiện bên ngoài còn thiếu. Khi được cấp quyền an toàn, Codex tiếp tục kiểm tra quota, tạo tài nguyên riêng, migration/Auth/Storage, deploy và nghiệm thu trên URL HTTPS. Không yêu cầu chủ ứng dụng tự thực hiện các lệnh thiết lập đã được giao.
+Các kiểm thử mới: lịch ôn tăng khoảng cách/chưa nhớ/loại từ bỏ qua, kiểm tra backup sai; trình duyệt kiểm tra Noto Sans Việt offline, PIN sai/đúng/reload, lưu buổi luyện, lịch ôn sau reload. Kết quả: 22/22 Vitest đạt; 10 E2E nền và 3 E2E mới đều đạt (test PIN chạy lại sau khi sửa assertion chờ lưu checkbox bất đồng bộ). Build và deploy dry-run đạt. Ảnh build production ở desktop 1440px/mobile 390px: dấu Việt đúng, mobile không tràn ngang.
+
+Endpoint dịch tự quản lý chưa được cấu hình. Dịch máy, OCR/PDF, AI và cloud outbox chưa được nghiệm thu; không báo hoàn thành các phần này.
+
+Triển khai production lúc 02:41 UTC ngày 20/10/2026. API Cloudflare xác nhận phiên bản trên nhận 100% traffic. Yêu cầu HTTP tới URL công khai từ Codex nhận 403 với mã Cloudflare 1010; chưa xác minh live browser. Kiểm thử browser và ảnh giao diện dùng đúng artifact production cục bộ. Không vô hiệu hóa TLS hoặc đổi thiết lập firewall để vượt lỗi này.

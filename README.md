@@ -33,7 +33,7 @@ Cấu hình công khai trong `.env.local` (máy phát triển), `.env.preview` h
 
 Migration: `supabase/migrations/202610190001_initial.sql`. Bucket `originals` riêng tư, đường dẫn `<owner UUID>/<book UUID>/original`. Mỗi bảng có policy SELECT/INSERT/UPDATE/DELETE; policy storage kiểm tra thư mục chủ sở hữu. Tài khoản trẻ không có thông tin đăng nhập riêng. `translation_jobs` và `integration_events` là nền schema, chưa được frontend sử dụng cho worker nền hoặc nhật ký cloud.
 
-Khởi tạo project mới, kiểm tra free-plan/quota, chạy migration và cấu hình Auth do Codex thực hiện khi được cấp kết nối. Phiên bàn giao hiện **không có kết nối Supabase** nên chưa tạo project hay áp dụng migration lên cloud. Không tác động dự án có sẵn. Local Supabase CLI/Docker là tùy chọn, chưa được cài và chạy trong lần này.
+Đã kiểm tra project `sddqnjefltipcpgypsun` ngày 20/10/2026: 5 bảng ứng dụng bật RLS, bucket `originals` riêng tư và Auth site URL đúng website production. Không tạo thêm project hoặc chạy lại migration lên dữ liệu có sẵn. Nghiệm thu Auth/Storage end-to-end bằng hai tài khoản live vẫn còn trong backlog.
 
 Địa chỉ Auth phải dùng đúng origin HTTPS được Cloudflare cấp. `site_url` và redirect URL của preview/production tách riêng. Không dùng wildcard tùy ý cho production. Mặc định email phải được xác nhận; cấu hình nhà cung cấp email tùy dự án.
 
@@ -64,7 +64,7 @@ npx wrangler deploy
 npm run deploy
 ```
 
-Các lệnh chỉ thực hiện khi tài khoản đã được chủ ứng dụng cấp quyền; đây là tài liệu vận hành, không phải bằng chứng đã deploy. Trong phiên này `wrangler whoami` trả về **chưa xác thực**, vì vậy chưa có URL HTTPS hay ứng dụng Cloudflare được tạo. Không dùng tài khoản preview tạm thời ngoài tài khoản của chủ ứng dụng.
+Production dùng Worker hiện có `readbook`, URL https://readbook.manhhuong.workers.dev/. Khi deploy giữ nguyên các biến đang có bằng `--keep-vars`. Không thay đổi gói tài khoản. Xem bằng chứng triển khai mới nhất trong `docs/validation.md`.
 
 Đưa secrets qua kho secrets/`wrangler secret put`, không nhúng ở frontend. Các vars không bí mật cần khai báo riêng từng môi trường trong Wrangler, secrets cũng tách riêng. Kiểm tra Workers Free và quota tài khoản trước khi deploy; không nâng gói. Sau deploy, cập nhật Auth site URL và redirect URL rồi chạy nghiệm thu trên URL thật. Rollback bằng `wrangler rollback` với version đã được liệt kê/kiểm tra; thay đổi schema cần migration tiến về trước, không xóa dữ liệu để rollback UI.
 
@@ -93,5 +93,9 @@ Playwright dùng `/usr/bin/chromium` nếu có; hoặc Chromium đã cài bởi 
 2. Mở sách, chọn ngôn ngữ đích và kiểu đọc. Nút dấu trang từng đoạn lưu chỗ đọc tiếp.
 3. Bấm biểu tượng tệp cạnh đoạn để nhập/sửa/khóa bản dịch hoặc ghi chú. Chọn chữ để lưu từ cùng ngữ cảnh.
 4. Nếu máy chủ dịch đã sẵn sàng, mở **Dịch & nghe**, xác nhận quyền gửi nội dung và dịch mẫu trước.
-5. Trong **Góc trẻ em**, tạo hồ sơ, duyệt sách rồi mở góc đọc. Cửa về quản lý chưa khóa bằng PIN, không dùng như cơ chế cách ly tài khoản.
+5. Trong **Góc trẻ em**, tạo hồ sơ, duyệt sách rồi mở góc đọc. Có thể đặt PIN để khóa cửa về quản lý trên trình duyệt này; đây không phải cơ chế cách ly tài khoản.
 6. Sao lưu trong **Cài đặt & kết nối**. Dữ liệu cục bộ gắn với trình duyệt/origin này, chưa mã hóa trên thiết bị; xóa dữ liệu trình duyệt có thể làm mất sách nếu chưa sao lưu.
+
+## Bổ sung ngày 20/10/2026
+
+Noto Sans có dấu tiếng Việt, tự lưu và cache offline. Sổ từ có ôn theo lịch tự đánh giá (10 phút / ngày). Góc trẻ có lịch sử 100 buổi gần nhất và PIN phụ huynh trên trình duyệt; reload phiên trẻ yêu cầu PIN trước khi mở ứng dụng. Lịch ôn và buổi luyện đi cùng JSON của từ/hồ sơ, tương thích dữ liệu cũ, không cần migration mới. PIN không đồng bộ cloud và không thay thế xác thực tài khoản.
