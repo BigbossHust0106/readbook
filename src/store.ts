@@ -1,11 +1,12 @@
 import { openDB } from "idb";
 import { createClient } from "@supabase/supabase-js";
 import { assertBook, type Book, type Word, type Child } from "./model";
-const db = openDB("lasach-v1", 1, {
+const db = openDB("lasach-v1", 2, {
   upgrade(db) {
-    db.createObjectStore("books", { keyPath: "id" });
-    db.createObjectStore("originals");
-    db.createObjectStore("settings");
+    if (!db.objectStoreNames.contains("books")) db.createObjectStore("books", { keyPath: "id" });
+    if (!db.objectStoreNames.contains("originals")) db.createObjectStore("originals");
+    if (!db.objectStoreNames.contains("settings")) db.createObjectStore("settings");
+    if (!db.objectStoreNames.contains("pdfDrafts")) db.createObjectStore("pdfDrafts", { keyPath: ["draftId", "page"] });
   },
 });
 export const supabase =
@@ -162,4 +163,14 @@ export async function setSetting(key: string, value: unknown) {
 }
 export async function getSetting<T>(key: string, fallback: T): Promise<T> {
   return (await (await db).get("settings", key)) ?? fallback;
+}
+
+export async function pdfDraftPages(draftId: string): Promise<import("./pdf").PdfTextPage[]> {
+  return (await db).getAll("pdfDrafts", IDBKeyRange.bound([draftId, 0], [draftId, Infinity]));
+}
+export async function savePdfDraftPage(draftId: string, page: import("./pdf").PdfTextPage) {
+  await (await db).put("pdfDrafts", { ...page, draftId });
+}
+export async function clearPdfDraft(draftId: string) {
+  await (await db).delete("pdfDrafts", IDBKeyRange.bound([draftId, 0], [draftId, Infinity]));
 }

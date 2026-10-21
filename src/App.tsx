@@ -1,6 +1,8 @@
+import { SourceImport } from "./SourceImport";
+import { paginateBook, pageForPosition, translatedFragment, type Fragment } from "./reading";
 import { ReviewPanel } from "./ReviewPanel";
 import { ParentPinSettings, ParentUnlock, enterChildLock } from "./ParentLock";
-import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   BookOpen,
   Library,
@@ -1113,20 +1115,16 @@ export default function App() {
                     >
                       {cap?.configured ? "Đã kết nối" : "Chưa khả dụng"}
                     </span>
-                    <h3>LibreTranslate · API chính thức</h3>
+                    <h3>{cap?.provider || "Dịch vụ dịch"} · API chính thức</h3>
                     <p>
                       {cap?.reason ||
                         "Khả năng dịch được lấy từ mô hình ngôn ngữ thực sự có trên máy chủ."}
                     </p>
                     <p>
-                      Không có khóa dùng chung trong trình duyệt. Không tự
-                      chuyển nhà cung cấp. Mỗi lần dịch đều cần xác nhận gửi văn
-                      bản.
+                      Bật đồng ý gửi văn bản trong trình đọc, rồi chọn dịch trang, chương hoặc toàn sách. Các đoạn đã sửa hoặc khóa được giữ nguyên.
                     </p>
                     <p className="muted">
-                      Giới hạn mỗi đoạn: 4.000 ký tự. Không hiển thị “miễn phí
-                      không giới hạn”. Chỉ triển khai kết nối tới máy chủ do bạn
-                      quản lý.
+                      MyMemory có hạn mức miễn phí theo IP dịch vụ, có thể dùng chung giữa người dùng. Khi hết hạn mức, ứng dụng dừng và giữ các bản dịch đã lưu để tiếp tục lần sau.
                     </p>
                     {cap?.configured && (
                       <p>
@@ -1315,6 +1313,7 @@ function ImportModal({
   const isPdf = file?.name.toLowerCase().endsWith(".pdf") || false;
   const [pdfPages, setPdfPages] = useState<PdfTextPage[] | null>(null);
   const [pdfIndex, setPdfIndex] = useState(0);
+  const [pdfDraftId, setPdfDraftId] = useState("");
   const [ocrMode, setOcrMode] = useState<"auto" | "always" | "off">("auto");
   const [firstPage, setFirstPage] = useState(1), [lastPage, setLastPage] = useState("");
   const [progress, setProgress] = useState<PdfProgress | null>(null);
@@ -1331,10 +1330,11 @@ function ImportModal({
       const { extractPdf } = await import("./pdf");
       const result = await extractPdf(file, { language, mode: ocrMode, start: firstPage,
         end: lastPage.trim() ? Number(lastPage) : undefined,
-        signal: controller.current.signal, onProgress: setProgress });
-      setPdfPages(result.pages);
+        signal: controller.current.signal, onProgress: setProgress,
+        resume: store.pdfDraftPages, onPage: store.savePdfDraftPage });
+      setPdfPages(result.pages); setPdfDraftId(result.draftId);
       setProgress(null);
-    } catch (e) { setError((e as Error).name === "AbortError" ? "Đã hủy. Tệp gốc chưa được lưu; bạn có thể chọn khoảng trang và thử lại." : errorText(e)); }
+    } catch (e) { setError((e as Error).name === "AbortError" ? "Đã hủy. Các trang đã xử lý được giữ trên thiết bị. Bấm Đọc PDF / OCR để tiếp tục." : errorText(e)); }
     finally { setBusy(false); setExtracting(false); controller.current = null; }
   }
   async function submit() {
@@ -1351,6 +1351,7 @@ function ImportModal({
         book,
         file || new Blob([text], { type: "text/plain;charset=utf-8" }),
       );
+      if (pdfDraftId) void store.clearPdfDraft(pdfDraftId).catch(() => {});
     } catch (e) {
       setError(errorText(e));
     } finally {
@@ -1367,6 +1368,7 @@ function ImportModal({
       <p className="muted">
         Tệp gốc được giữ riêng. PDF/OCR xử lý trên thiết bị; khi dùng chế độ cloud, tệp gốc và văn bản sẽ được lưu vào tài khoản của bạn.
       </p>
+      <SourceImport onBusy={setBusy} disabled={busy} onFile={(next, sourceTitle, sourceAuthor) => { resetPdf(); setFirstPage(1); setLastPage(""); setFile(next); setTitle(sourceTitle || next.name.replace(/\.[^.]+$/, "")); if (sourceAuthor) setAuthor(sourceAuthor); }} />
       <label className="dropzone">
         <Upload size={30} />
         <strong>{file ? file.name : "Chọn tệp sách của bạn"}</strong>
@@ -1436,11 +1438,11 @@ function ImportModal({
           <option value="off">Chỉ lấy lớp chữ có sẵn (không OCR)</option>
           <option value="always">OCR tất cả trang đã chọn</option>
         </select></label>
-        <div className="form-grid">
+        <details><summary>Tùy chọn khoảng trang (mặc định toàn bộ tệp)</summary><div className="form-grid">
           <label>Từ trang<input type="number" min={1} value={firstPage} disabled={busy} onChange={e => { setFirstPage(Number(e.target.value)); resetPdf(); }} /></label>
           <label>Đến trang<input type="number" min={firstPage} placeholder="Để trống: hết tài liệu" value={lastPage} disabled={busy} onChange={e => { setLastPage(e.target.value); resetPdf(); }} /></label>
         </div>
-        <p className="muted">Mỗi lượt tối đa 200 trang, trong đó tối đa 50 trang OCR. Bản gốc vẫn được giữ đầy đủ.</p>
+        </details><p className="muted">Quét toàn bộ tệp, không giới hạn số trang. Tiến độ từng trang tự lưu trên thiết bị để tiếp tục nếu bị gián đoạn. Hãy giữ tab mở khi xử lý.</p>
         <button disabled={busy || !file || file.size > MAX_FILE} onClick={() => void processPdf()}>{pdfPages ? "Trích xuất lại PDF" : "Đọc PDF / OCR"}</button>
         {extracting && <button onClick={() => controller.current?.abort()}>Hủy xử lý</button>}
         {extracting && <div role="status"><p>{progress ? `${progress.stage} · trang ${progress.page}/${progress.total}` : "Đang mở PDF…"}</p><progress aria-label="Tiến độ PDF" max={1} value={progress?.fraction || 0} /></div>}
@@ -1498,7 +1500,7 @@ function Reader({
       Math.min(book.position.chapter, book.chapters.length - 1),
     ),
     [target, setTarget] = useState<Lang>(book.language === "vi" ? "en" : "vi"),
-    [layout, setLayout] = useState("parallel"),
+    [layout, setLayout] = useState("original"),
     [font, setFont] = useState(20),
     [theme, setTheme] = useState("light"),
     [search, setSearch] = useState(""),
@@ -1520,6 +1522,20 @@ function Reader({
     [metadata, setMetadata] = useState(false),
     [newTitle, setNewTitle] = useState(book.title),
     [newAuthor, setNewAuthor] = useState(book.author);
+  const [readMode, setReadMode] = useState<"paged" | "continuous">("paged");
+  const [pageSize, setPageSize] = useState(2500);
+  const [readerReady, setReaderReady] = useState(false);
+  const pages = useMemo(() => paginateBook(book, pageSize), [book.chapters, pageSize]);
+  const [pageIndex, setPageIndex] = useState(() => pageForPosition(paginateBook(book, 2500), book.position));
+  const [rangeStart, setRangeStart] = useState(book.position.chapter);
+  const [rangeEnd, setRangeEnd] = useState(Math.min(book.chapters.length, book.position.chapter + 2));
+  const [activeParagraph, setActiveParagraph] = useState("");
+  const [navigating, setNavigating] = useState(false);
+  const paper = useRef<HTMLDivElement | null>(null);
+  const sentinel = useRef<HTMLDivElement | null>(null);
+  const translationPanel = useRef<HTMLDetailsElement | null>(null);
+  const fragments: Fragment[] = readMode === "paged" ? pages[Math.min(pageIndex, pages.length - 1)].fragments :
+    book.chapters.slice(rangeStart, rangeEnd).flatMap((c, ci) => c.paragraphs.map((p, pi) => ({ chapter: rangeStart + ci, paragraph: pi, start: 0, end: p.text.length })));
   const latest = useRef(book),
     stopped = useRef(false),
     abort = useRef<AbortController | null>(null),
@@ -1532,13 +1548,18 @@ function Reader({
       .getSetting("reader", {
         font: 20,
         theme: "light",
-        layout: "parallel",
+        layout: "original",
+        readMode: "paged",
+        pageSize: 2500,
         target: book.language === "vi" ? "en" : "vi",
       })
       .then((s) => {
         setFont(s.font);
         setTheme(s.theme);
         setLayout(s.layout);
+        setReadMode(s.readMode === "continuous" ? "continuous" : "paged");
+        setPageSize(Math.max(500, Math.min(8000, Number(s.pageSize) || 2500)));
+        setReaderReady(true);
         if (s.target !== book.language) setTarget(s.target as Lang);
       });
     return () => {
@@ -1548,14 +1569,42 @@ function Reader({
     };
   }, []);
   useEffect(() => {
-    void store.setSetting("reader", { font, theme, layout, target });
-  }, [font, theme, layout, target]);
+    if (readerReady) void store.setSetting("reader", { font, theme, layout, target, readMode, pageSize });
+  }, [readerReady, font, theme, layout, target, readMode, pageSize]);
   useEffect(() => {
-    const el = document.getElementById(
-      `p-${book.chapters[chapter]?.paragraphs[book.position.chapter === chapter ? book.position.paragraph : 0]?.id}`,
-    );
-    el?.scrollIntoView({ block: "center", behavior: "instant" });
-  }, [chapter]);
+    if (!readerReady) return;
+    const index = pageForPosition(pages, latest.current.position);
+    setPageIndex(index); setChapter(pages[index].chapter);
+  }, [pageSize, readerReady]);
+  useEffect(() => {
+    if (readMode !== "continuous" || !sentinel.current || !("IntersectionObserver" in window)) return;
+    const observer = new IntersectionObserver(entries => {
+      if (entries.some(e => e.isIntersecting)) setRangeEnd(end => Math.min(book.chapters.length, end + 2));
+    }, { rootMargin: "600px" });
+    observer.observe(sentinel.current); return () => observer.disconnect();
+  }, [readMode, rangeEnd, book.chapters.length]);
+  useEffect(() => {
+    const position = latest.current.position;
+    if (!readerReady || !(position.chapter || position.paragraph || position.offset)) return;
+    const handle = requestAnimationFrame(() => document.getElementById(`p-${latest.current.chapters[position.chapter]?.paragraphs[position.paragraph]?.id}`)?.scrollIntoView({ block: "center", behavior: "instant" }));
+    return () => cancelAnimationFrame(handle);
+  }, [readerReady, readMode]);
+  async function goPage(index: number) {
+    if (index < 0 || index >= pages.length || navigating) return;
+    const first = pages[index].fragments[0];
+    setPageIndex(index); setChapter(first.chapter); setActiveParagraph(""); setNavigating(true);
+    try { await update({ ...latest.current, position: { chapter: first.chapter, paragraph: first.paragraph, offset: first.start } }); }
+    catch (e) { notify(errorText(e)); }
+    finally { setNavigating(false); }
+    paper.current?.scrollIntoView({ block: "start", behavior: "instant" });
+  }
+  async function goChapter(ci: number) {
+    if (readMode === "paged") { await goPage(pages.findIndex(p => p.chapter === ci)); return; }
+    setChapter(ci); setRangeStart(ci); setRangeEnd(Math.min(book.chapters.length, ci + 2));
+    try { await update({ ...latest.current, position: { chapter: ci, paragraph: 0, offset: 0 } }); }
+    catch (e) { notify(errorText(e)); }
+    requestAnimationFrame(() => paper.current?.scrollIntoView({ block: "start", behavior: "instant" }));
+  }
   async function update(next: Book) {
     await onUpdate(next);
     latest.current = next;
@@ -1570,9 +1619,9 @@ function Reader({
       })),
     });
   }
-  async function markPosition(i: number) {
+  async function markPosition(i: number, ci = chapter, offset = 0) {
     try {
-      await update({ ...latest.current, position: { chapter, paragraph: i } });
+      await update({ ...latest.current, position: { chapter: ci, paragraph: i, offset } });
     } catch (e) {
       notify(errorText(e));
     }
@@ -1583,9 +1632,11 @@ function Reader({
     cap.pairs.some(
       (p) => p.source === book.language && p.targets.includes(target),
     );
-  async function translate(scope: "sample" | "chapter") {
-    const pending = pendingParagraphs(latest.current, target, chapter);
-    const work = scope === "sample" ? pending.slice(0, 1) : pending;
+  async function translate(scope: "sample" | "chapter" | "page" | "book") {
+    if (translating) return;
+    const pending = pendingParagraphs(latest.current, target, (scope === "book" || scope === "page") ? undefined : chapter);
+    const visibleIds = new Set(fragments.map(f => book.chapters[f.chapter].paragraphs[f.paragraph].id));
+    const work = scope === "sample" ? pending.slice(0, 1) : scope === "page" ? pending.filter(p => visibleIds.has(p.id)) : pending;
     if (!work.length) {
       notify("Các đoạn trong phạm vi đã có bản dịch. Không dịch lại.");
       return;
@@ -1594,13 +1645,7 @@ function Reader({
       notify("Vui lòng đồng ý gửi nội dung tới máy chủ dịch đã cấu hình.");
       return;
     }
-    const count = work.reduce((n, p) => n + p.text.length, 0);
-    if (
-      !confirm(
-        `Gửi ${work.length} đoạn (${count.toLocaleString("vi-VN")} ký tự) đến LibreTranslate? Không tự chuyển nhà cung cấp; máy chủ tự triển khai phải do bạn quản lý.`,
-      )
-    )
-      return;
+    setLayout(current => current === "original" || current === "translation" ? (window.matchMedia("(max-width: 600px)").matches ? "interleaved" : "parallel") : current);
     stopped.current = false;
     setTranslating(true);
     let done = 0;
@@ -1620,7 +1665,7 @@ function Reader({
         if (existing?.text) continue;
         setJobStatus(`Đang dịch ${done + 1}/${work.length}…`);
         abort.current = new AbortController();
-        const session = cloud ? await store.supabase!.auth.getSession() : null;
+        const session = store.supabase ? await store.supabase.auth.getSession() : null;
         const headers: Record<string, string> = {
           "Content-Type": "application/json",
         };
@@ -1718,6 +1763,7 @@ function Reader({
           catch (e) { notify(errorText(e)); }
           finally { setSourceLoading(false); }
         }}>Đối chiếu PDF gốc</button>}
+        <button className="primary" onClick={() => { if (translationPanel.current) { translationPanel.current.open = true; translationPanel.current.scrollIntoView({ block: "center" }); } }}>Dịch song ngữ</button>
         <button
           aria-label="Chỉnh thông tin sách"
           onClick={() => setMetadata(true)}
@@ -1732,14 +1778,7 @@ function Reader({
             aria-label="Chương"
             value={chapter}
             disabled={translating}
-            onChange={(e) => {
-              const c = Number(e.target.value);
-              setChapter(c);
-              void update({
-                ...latest.current,
-                position: { chapter: c, paragraph: 0 },
-              }).catch((e) => notify(errorText(e)));
-            }}
+            onChange={e => void goChapter(Number(e.target.value))}
           >
             {book.chapters.map((c, i) => (
               <option key={c.id} value={i}>
@@ -1768,6 +1807,11 @@ function Reader({
             <option value="translation">Bản dịch</option>
           </select>
         </label>
+        <label>Chế độ đọc<select aria-label="Chế độ đọc" value={readMode} onChange={e => {
+          const mode = e.target.value as "paged" | "continuous"; setReadMode(mode);
+          setRangeStart(chapter); setRangeEnd(Math.min(book.chapters.length, chapter + 2));
+        }}><option value="paged">Lật trang</option><option value="continuous">Cuộn liên tục</option></select></label>
+        <label>Ký tự mỗi trang · {pageSize.toLocaleString("vi-VN")}<input aria-label="Số ký tự mỗi trang" type="range" min={500} max={8000} step={250} value={pageSize} disabled={translating} onChange={e => setPageSize(Number(e.target.value))} /></label>
         <label>
           Cỡ chữ
           <input
@@ -1811,7 +1855,7 @@ function Reader({
           </select>
         </label>
       </div>
-      <details className="translation-panel">
+      <details ref={translationPanel} className="translation-panel">
         <summary>
           <Languages size={17} /> Dịch & nghe{" "}
           <span>
@@ -1836,10 +1880,12 @@ function Reader({
             checked={consent}
             onChange={(e) => setConsent(e.target.checked)}
           />{" "}
-          Tôi đồng ý gửi văn bản được chọn tới máy chủ LibreTranslate đã cấu
-          hình.
+          Tôi đồng ý gửi văn bản cần dịch tới {cap?.provider || "dịch vụ đã chọn"}.
         </label>
+        <p className="muted">{cap?.reason || `Nhà cung cấp: ${cap?.provider || "chưa cấu hình"}`}</p>
         <div className="row">
+          <button className="primary" disabled={!supported || translating || !consent} onClick={() => void translate("page")}>{readMode === "paged" ? "Dịch trang này" : "Dịch phần đang đọc"}</button>
+          <button disabled={!supported || translating || !consent} onClick={() => void translate("book")}>Dịch toàn sách / tiếp tục</button>
           <button
             disabled={!supported || translating}
             onClick={() => void translate("sample")}
@@ -1906,8 +1952,13 @@ function Reader({
           />
         </label>
       </div>
-      <div className={`paragraphs layout-${layout}`} style={{ fontSize: font }}>
-        {paragraphs.map((p, i) => {
+      <div ref={paper} className={`reading-paper paragraphs layout-${layout} mode-${readMode}`} style={{ fontSize: font }}>
+        {readMode === "continuous" && rangeStart > 0 && <button onClick={() => setRangeStart(start => Math.max(0, start - 2))}>Nạp chương trước</button>}
+        {fragments.map((fragment, fi) => {
+          const ci = fragment.chapter, i = fragment.paragraph;
+          const p = book.chapters[ci].paragraphs[i];
+          const displayText = p.text.slice(fragment.start, fragment.end);
+          const translatedText = p.translations[target]?.text ? translatedFragment(p.translations[target]!.text, p.text.length, fragment.start, fragment.end) : "";
           if (
             search &&
             !p.text.toLowerCase().includes(search.toLowerCase()) &&
@@ -1918,23 +1969,27 @@ function Reader({
             return null;
           return (
             <article
+              data-chapter={ci} data-paragraph={i}
+              onClick={() => setActiveParagraph(p.id)}
+              tabIndex={0}
               id={`p-${p.id}`}
               key={p.id}
-              className={`paragraph ${p.highlight ? "highlighted" : ""} ${book.position.chapter === chapter && book.position.paragraph === i ? "current" : ""}`}
+              className={`paragraph ${activeParagraph === p.id ? "active-paragraph" : ""} ${p.highlight ? "highlighted" : ""} ${book.position.chapter === ci && book.position.paragraph === i ? "current" : ""}`}
             >
+              {readMode === "continuous" && (fi === 0 || fragments[fi - 1].chapter !== ci) && <h3 className="continuous-chapter-title">{book.chapters[ci].title}</h3>}
               <div
                 className="paragraph-text"
                 onMouseUp={() => capture(p)}
                 onTouchEnd={() => capture(p)}
               >
                 {layout !== "translation" && (
-                  <p lang={book.language}>{p.text}</p>
+                  <p lang={book.language} style={fragment.start ? { textIndent: 0 } : undefined}>{displayText}</p>
                 )}
                 {layout !== "original" && (
                   <div className="translated" lang={target}>
                     {p.translations[target]?.text ? (
                       <>
-                        <p>{p.translations[target]!.text}</p>
+                        <p>{translatedText}</p>
                         <span className="translation-label">
                           {p.translations[target]!.provider === "manual"
                             ? "Đã sửa thủ công"
@@ -1964,12 +2019,12 @@ function Reader({
                 <button
                   aria-label={`Lưu vị trí đoạn ${i + 1}`}
                   title="Lưu vị trí để đọc tiếp"
-                  onClick={() => void markPosition(i)}
+                  onClick={() => void markPosition(i, ci, fragment.start)}
                 >
                   <Bookmark
                     size={15}
                     fill={
-                      book.position.chapter === chapter &&
+                      book.position.chapter === ci &&
                       book.position.paragraph === i
                         ? "currentColor"
                         : "none"
@@ -2020,25 +2075,16 @@ function Reader({
           );
         })}
       </div>
-      <div className="reader-bottom">
-        <button
-          disabled={chapter === 0 || translating}
-          onClick={() => setChapter(chapter - 1)}
-        >
-          <ChevronLeft size={17} /> Chương trước
+      {readMode === "continuous" && <div ref={sentinel} className="reading-sentinel" role="status">{rangeEnd < book.chapters.length ? "Đang nối phần tiếp theo…" : "Đã đến cuối sách."}</div>}
+      <nav className="reader-bottom" aria-label="Chuyển trang đọc">
+        <button disabled={readMode === "paged" && (pageIndex === 0 || translating || navigating)} onClick={() => readMode === "paged" ? void goPage(pageIndex - 1) : window.scrollBy({ top: -window.innerHeight * 0.85, behavior: "smooth" })}>
+          <ChevronLeft size={17} />{readMode === "paged" ? "Trang trước" : "Lùi màn hình"}
         </button>
-        <span>
-          {chapter + 1}/{book.chapters.length} chương ·{" "}
-          {Math.floor((Date.now() - readingStart.current) / 60000)} phút trong
-          phiên
-        </span>
-        <button
-          disabled={chapter === book.chapters.length - 1 || translating}
-          onClick={() => setChapter(chapter + 1)}
-        >
-          Chương sau <ChevronRight size={17} />
+        <span>{readMode === "paged" ? `Trang ${pageIndex + 1}/${pages.length}` : "Đọc liên tục"} · {Math.floor((Date.now() - readingStart.current) / 60000)} phút</span>
+        <button disabled={readMode === "paged" && (pageIndex >= pages.length - 1 || translating || navigating)} onClick={() => readMode === "paged" ? void goPage(pageIndex + 1) : window.scrollBy({ top: window.innerHeight * 0.85, behavior: "smooth" })}>
+          {readMode === "paged" ? "Trang sau" : "Tiếp màn hình"}<ChevronRight size={17} />
         </button>
-      </div>
+      </nav>
       {selection && (
         <Modal
           title="Từ & cụm từ trong ngữ cảnh"
@@ -2161,6 +2207,7 @@ function Reader({
                     note,
                   }));
                   setEditing(null);
+                  if (editedText.trim() && layout === "original") setLayout("parallel");
                   notify("Đã lưu bản dịch và ghi chú.");
                 } catch (e) {
                   notify(errorText(e));

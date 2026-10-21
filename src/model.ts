@@ -28,7 +28,7 @@ export type Book = {
   createdAt: string;
   hash: string;
   chapters: Chapter[];
-  position: { chapter: number; paragraph: number };
+  position: { chapter: number; paragraph: number; offset?: number };
   shelf: "reading" | "later" | "favorite" | "done";
   originalName?: string;
   originalType?: string;
@@ -209,6 +209,7 @@ export function assertBook(value: unknown): asserts value is Book {
     }
   }
   if (
+    (b.position.offset !== undefined && (!Number.isInteger(b.position.offset) || b.position.offset < 0 || b.position.offset > (b.chapters[b.position.chapter]?.paragraphs[b.position.paragraph]?.text.length || 0))) ||
     !Number.isInteger(b.position.chapter) ||
     b.position.chapter < 0 ||
     b.position.chapter >= b.chapters.length ||

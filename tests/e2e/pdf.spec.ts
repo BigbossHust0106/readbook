@@ -32,7 +32,7 @@ test('PDF text over the old 20 MB limit imports, can be corrected, and keeps the
   await expect(page.getByRole('dialog')).toContainText('PDF gốc · trang 1');
   await expect(page.getByRole('dialog').getByRole('img', { name: 'Trang PDF gốc 1' })).toBeVisible();
   await page.getByRole('button', { name: 'Đóng', exact: true }).click();
-  await page.getByRole('button', { name: 'Chương sau', exact: false }).click();
+  await page.getByRole('button', { name: 'Trang sau', exact: true }).click();
   await expect(page.locator('.paragraph-text').first()).toContainText('PDF page two');
   await page.reload();
   await page.getByRole('button', { name: /text-large/ }).click();
@@ -88,6 +88,7 @@ test('PDF range and 50 MB limit give actionable errors; corrupt PDF can be repla
   await page.getByRole('button', { name: 'Đọc PDF / OCR', exact: true }).click();
   await expect(page.getByRole('alert')).toBeVisible();
   await page.getByLabel('Tệp sách').setInputFiles({ name: 'good.pdf', mimeType: 'application/pdf', buffer: await textPdf() });
+  await page.getByText('Tùy chọn khoảng trang (mặc định toàn bộ tệp)').click();
   await page.getByLabel('Từ trang').fill('3');
   await page.getByRole('button', { name: 'Đọc PDF / OCR', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('PDF có 2 trang');
@@ -117,4 +118,29 @@ test('cancelling model download stops import and the same dialog can retry', asy
   await page.getByLabel('Tệp sách').setInputFiles({ name: 'retry.pdf', mimeType: 'application/pdf', buffer: await textPdf() });
   await page.getByRole('button', { name: 'Đọc PDF / OCR', exact: true }).click();
   await expect(page.getByLabel('Văn bản PDF đã trích xuất')).toHaveValue(/PDF page one/);
+});
+
+test('imports all 205 pages in one PDF and resumes a completed draft after closing the dialog', async ({ page }) => {
+  test.setTimeout(90000);
+  const pdf = await PDFDocument.create();
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  for (let i = 1; i <= 205; i++) pdf.addPage([500, 700]).drawText(`This is complete page ${i}. Read the entire document.`, { x: 30, y: 600, size: 14, font });
+  const buffer = Buffer.from(await pdf.save());
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Thêm sách', exact: true }).click();
+  await page.getByLabel('Tệp sách').setInputFiles({ name: 'whole-205.pdf', mimeType: 'application/pdf', buffer });
+  await page.getByLabel('Cách đọc PDF').selectOption('off');
+  await page.getByRole('button', { name: 'Đọc PDF / OCR', exact: true }).click();
+  await expect(page.getByLabel('Trang để kiểm tra').locator('option')).toHaveCount(205, { timeout: 60000 });
+  await page.getByRole('button', { name: 'Đóng', exact: true }).click();
+  await page.getByRole('button', { name: 'Thêm sách', exact: true }).click();
+  await page.getByLabel('Tệp sách').setInputFiles({ name: 'whole-205.pdf', mimeType: 'application/pdf', buffer });
+  await page.getByLabel('Cách đọc PDF').selectOption('off');
+  await page.getByRole('button', { name: 'Đọc PDF / OCR', exact: true }).click();
+  await expect(page.getByLabel('Trang để kiểm tra').locator('option')).toHaveCount(205);
+  await page.getByLabel('Trang để kiểm tra').selectOption('204');
+  await expect(page.getByLabel('Văn bản PDF đã trích xuất')).toHaveValue(/complete page 205/);
+  await page.getByRole('button', { name: 'Nhập & lưu sách', exact: true }).click();
+  await page.getByRole('button', { name: /whole-205/ }).click();
+  await expect(page.getByLabel('Chương', { exact: true }).locator('option')).toHaveCount(205);
 });

@@ -10,7 +10,8 @@ flowchart LR
   UI --> FILES[Private Storage]
   UI --> W[Worker API cùng origin]
   W --> JWT[Supabase xác minh JWT]
-  W --> LT[LibreTranslate do chủ app cấu hình]
+  W --> MT[MyMemory API chính thức, hạn mức miễn phí]
+  W --> LT[LibreTranslate tùy chọn do chủ app cấu hình]
 ```
 
 ## Ranh giới mô-đun
@@ -66,4 +67,10 @@ Bản sao lưu chứa dữ liệu riêng tư nhưng không chứa credential. Ch
 
 OCR models và runtime được chuẩn bị từ lockfile vào `public/ocr`; PDF fonts/cmaps/WASM ở `public/pdf`. Chỉ runtime từng dùng được cache; file tài liệu người dùng không vào HTTP cache. PDF gốc ở IndexedDB/private Storage; chương JSON có `sourcePage` và `ocr`, dữ liệu cũ không cần chuyển đổi. OCR text được kiểm tra/sửa trước khi lưu, giữ SHA-256 của PDF nguyên bản. Cùng tệp/ngôn ngữ/khoảng trang bị chặn trùng; các khoảng khác nhau được nhập riêng.
 
-Hủy dùng AbortController cho tải model, hủy PDF loading task và chấm dứt OCR worker; nếu hủy khi worker còn khởi tạo thì worker được chấm dứt ngay khi khởi tạo xong. Không có OCR nền sau đóng tab hoặc checkpoint bền vững.
+Hủy dùng AbortController cho tải model, hủy PDF loading task và chấm dứt OCR worker; nếu hủy khi worker còn khởi tạo thì worker được chấm dứt ngay khi khởi tạo xong. Không có OCR nền khi đóng tab. Checkpoint từng trang lưu ở IndexedDB pdfDrafts (DB version 2), khóa bằng SHA-256 + ngôn ngữ + mode; mặc định toàn bộ PDF. Các trang đã xong được bỏ qua khi tiếp tục; không upload checkpoint cloud.
+
+## Phân trang và nguồn metadata
+
+`reading.ts` chia phần hiển thị theo ngân sách ký tự, giữ ID gốc và khoảng start/end; không sửa source hoặc bản dịch. Bản dịch đoạn dài chia theo tỷ lệ độ dài ở ranh giới từ, nên không cam kết căn từng câu giữa ngôn ngữ; cuộn liên tục giữ cặp đoạn đầy đủ. `Book.position.offset` là tùy chọn tương thích bản sao lưu cũ. Dải chương đang tải tăng khi IntersectionObserver thấy sentinel.
+
+DTV adapter chỉ cho HTTPS của hai hostname cố định, kiểm tra lại mỗi redirect, giới hạn HTML 1,5 MB/tệp 50 MB. Chỉ gửi request user chọn, không chuyển cookie/credential. Danh mục là tiêu đề/link, không phải nội dung toàn văn. Có site-search mở trong browser để sử dụng khi nguồn chặn server fetch. `mymemory.ts` chỉ gọi endpoint get chính thức, không gọi API đóng góp set, không nhúng khóa hay tự đổi nhà cung cấp; mỗi đoạn được chia an toàn UTF-8 và không lưu thông báo quota thành nội dung.

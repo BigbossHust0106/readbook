@@ -1842,3 +1842,45 @@ body.child-mode .app > main {
   background: white;
 }
 .pdf-import progress { width: 100%; accent-color: #27614d; }
+
+/* A quiet reading surface; tools appear on the active paragraph without adding rows. */
+.reader { padding-bottom: calc(105px + env(safe-area-inset-bottom)); }
+.reading-paper { scroll-margin-top: 24px; }
+.reading-paper .paragraph { position: relative; padding: 0 4px; border: 0; margin: 0; outline-offset: 3px; }
+.reading-paper .paragraph p { white-space: normal; text-align: justify; text-indent: 1.35em; line-height: 1.85; margin: 0 0 .6em; }
+.reading-paper .paragraph.current { border: 0; }
+.reading-paper .paragraph-text { gap: 28px; }
+.reading-paper .paragraph .translated { padding-left: 20px; }
+.reading-paper .paragraph-actions { position: absolute; z-index: 3; right: 0; bottom: 0; margin: 0; padding: 2px 5px; border-radius: 7px; background: #f0f4eb; box-shadow: 0 2px 7px #24382a20; opacity: 0; }
+.reading-paper .paragraph:hover .paragraph-actions,
+.reading-paper .paragraph:focus-within .paragraph-actions,
+.reading-paper .active-paragraph .paragraph-actions { opacity: 1; pointer-events: auto; }
+.reading-paper .paragraph-actions > span { display: none; }
+.reading-paper .translation-label { display: none; }
+.reading-paper .untranslated { text-indent: 0; font-size: .6em; }
+.reading-paper .layout-original .translated { padding: 0; }
+.continuous-chapter-title { margin: 1.8em 0 1em; font-size: 1.1em; font-weight: 600; }
+.reader-bottom { position: fixed; bottom: 0; left: 238px; right: 0; z-index: 15; margin: 0; padding: 12px 24px calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid #d8dfd1; background: #fffffff5; color: #425446; box-shadow: 0 -2px 12px #26382a10; }
+.reader-bottom button { min-height: 42px; }
+.theme-dark .reader-bottom, .theme-dark .paragraph-actions { background: #27332d; color: #e3eadd; }
+.reading-sentinel { text-align: center; padding: 30px; color: #73846b; font-size: 12px; }
+.source-import { border: 1px solid #dae3d1; padding: 12px; border-radius: 8px; margin-bottom: 15px; font-size: 13px; }
+.source-import summary { cursor: pointer; font-weight: 600; }
+.source-import button { margin: 4px 6px 4px 0; }
+@media (max-width: 1150px) { .reader-bottom { left: 205px; } }
+@media (max-width: 850px) { .reader-bottom { left: 75px; padding-left: 12px; padding-right: 12px; } }
+@media (max-width: 600px) {
+  .reader-bottom { left: 0; }
+  .reader-header { flex-wrap: wrap; }
+  .reader-header > div { min-width: 45%; }
+  .reader-bottom { gap: 6px; }
+  .reader-bottom button { font-size: 11px; padding: 8px; }
+  .reader-bottom span { font-size: 10px; text-align: center; }
+  .reading-paper .paragraph p { font-size: 1em; }
+  .reading-paper .paragraph-text { gap: 14px; }
+}
+.source-catalog { max-height: 260px; overflow-y: auto; padding-left: 20px; }
+.source-catalog li { margin: 10px 0; }
+.source-import > .row { flex-wrap: wrap; }
+.source-import > .row a { white-space: normal; }
+.app:has(.reader) .toast { bottom: calc(85px + env(safe-area-inset-bottom)); }

@@ -1,6 +1,6 @@
 # Kết quả nghiệm thu
 
-Cập nhật ngày 20/10/2026. Có website production và project Supabase đang hoạt động. Phân biệt kiểm tra cấu hình hosted với nghiệm thu Auth/Storage end-to-end.
+Cập nhật ngày 21/10/2026. Có website production và project Supabase đang hoạt động. Phân biệt kiểm tra cấu hình hosted với nghiệm thu Auth/Storage end-to-end.
 
 | Phần | Kết quả | Phạm vi |
 |---|---|---|
@@ -9,13 +9,13 @@ Cập nhật ngày 20/10/2026. Có website production và project Supabase đang
 | Mô hình và CSV | 6/6 đạt | Chương/ngôn ngữ/ID, khóa, lịch sử, tiếp tục thiếu đoạn, gộp từ, bảo vệ CSV formula |
 | Worker API | 8/8 đạt | Disabled không gửi nội dung; origin/auth/validation, server-only key, 429 không fallback, missing model, không lộ lỗi/secret |
 | PostgreSQL RLS | 5/5 đạt | Migration chạy bằng PGlite; hai danh tính, quyền SELECT/INSERT/UPDATE/DELETE, chặn đổi chủ, revision, child/vocabulary/events/job và private storage policies |
-| Chromium E2E | 17/17 đạt | Các luồng chi tiết bên dưới |
+| Chromium E2E | 22/22 đạt | Các luồng chi tiết bên dưới |
 | Dependency audit production | Đạt | `npm audit --omit=dev`: 0 vulnerabilities được báo cáo tại thời điểm kiểm tra |
 | Worker runtime local | Đạt | Wrangler/Workerd phục vụ build và API health/capabilities |
 | Giao diện | Đã kiểm tra | 1440px và 390px; kiểm thử không tràn ngang mobile; focus modal, Escape/Tab, giảm hiệu ứng theo hệ thống |
 | Supabase hosted | Đã kiểm tra cấu hình | API quản lý: ACTIVE_HEALTHY, bảng/RLS/bucket/Auth URL; còn nghiệm thu hai tài khoản live |
-| Cloudflare deployment | Đạt qua API | Worker `readbook`, version `749a6f36-3cee-4166-ab3b-868627644c08`, 100% traffic; HTTP từ Codex bị 403/1010 |
-| Dịch thực tế 6 chiều | Chưa chạy | Chưa có endpoint/model/API credential |
+| Cloudflare deployment | Đạt qua API | Worker `readbook`, version `ddf07dfd-76b6-47eb-ac97-d017d60dfa47`, 100% traffic; HTTP từ Codex bị 403/1010 |
+| Dịch thực tế 6 chiều | Đạt upstream | MyMemory API chính thức, câu tổng hợp; thêm 2 đoạn dịch thật qua browser/handler với Node proxy |
 | Hanzii trên thiết bị thật | Chưa chạy | Website bị proxy 403; deep link/API/CSV chưa xác minh |
 
 ## 10 luồng trình duyệt
@@ -33,7 +33,7 @@ Cập nhật ngày 20/10/2026. Có website production và project Supabase đang
 
 ## Giới hạn bằng chứng
 
-- Worker và E2E quota dùng provider fixture. **Không có bản dịch máy live được xác nhận.** Không tuyên bố chất lượng/độ chính xác của provider.
+- Các bài quota/error dùng provider fixture. Có bằng chứng MyMemory upstream thật ở sáu chiều và browser/handler qua Node proxy; chưa nghiệm thu Worker production qua URL công khai do 403. Không tuyên bố chất lượng văn học hoặc độ chính xác chung của provider.
 - RLS chạy trên PostgreSQL thật qua WASM/PGlite nhưng Supabase Auth/Storage nền tảng được tạo fixture tối thiểu. **Không thay nghiệm thu hosted Auth, object storage hoặc hai tài khoản trên URL production.**
 - Recording dùng thiết bị audio tổng hợp, permission cấp riêng cho test. Chưa xác minh micro thực, TTS giọng Việt/Trung/Anh, iOS background audio hoặc offline voices.
 - Hanzii chỉ có sao chép và mở homepage bằng cơ chế web chuẩn; chưa kiểm tra được trên mobile, chưa có deep link/API/Pro/CSV chính thức.
@@ -62,3 +62,16 @@ Triển khai production lúc 02:41 UTC ngày 20/10/2026. API Cloudflare xác nh�
 - Supabase global file limit xác nhận 52.428.800 byte. Áp dụng migration nâng bucket originals từ 20 lên 50 MB qua SQL API và đọc lại xác nhận `public=false`, `file_size_limit=52428800`. Không thay đổi dữ liệu sách hoặc chính sách RLS. Chưa có thử upload/download 50 MB vào Supabase hosted bằng hai tài khoản.
 
 Triển khai PDF/OCR thành công lúc 02:56 UTC ngày 20/10/2026, version `b2f70992-b36b-4c8b-bd84-e3802361a673`. API Cloudflare xác nhận 100% traffic. Đợt đầu bulk asset upload trả 401 từ lớp tích hợp; tải từng asset cùng endpoint/auth đã thành công (223 tệp mới, 18 có sẵn). Chỉ tạm chia nhỏ bucket upload trong CLI dependency cục bộ, sau đó khôi phục CLI nguyên bản; không thay đổi credential/network policy. HTTP health công khai từ Codex vẫn bị Cloudflare 403/1010; không báo đã nghiệm thu browser live. Modal PDF ở 390px đã kiểm tra không tràn ngang.
+
+## Cập nhật ngày 21/10/2026 (giờ Việt Nam)
+
+- PDF thực 205 trang được xử lý toàn bộ trong một lần; đóng dialog/mở lại cùng tệp vẫn đọc được checkpoint và trang 205. Unit mô phỏng 55 trang scan: hủy sau 20 trang rồi chỉ OCR 35 trang còn thiếu. Unit PDF 241 trang không có giới hạn 200.
+- Phân trang giữ nguyên toàn bộ Unicode, không mất/lặp đoạn hoặc bản dịch; giữ vị trí khi đổi ngân sách ký tự. Browser kiểm tra lật trang, reload, slider, cuộn tự nối chương và thanh điều hướng bám đáy ở 390px.
+- MyMemory upstream thật trả kết quả ở sáu chiều en↔vi, en↔zh-CN, vi↔zh-CN với câu tổng hợp. Worker handler chạy qua proxy được cấu hình trả 200: “Reading a book opens a new world.” → “Đọc một cuốn sách mở ra một thế giới mới.”. Đây không phải đánh giá chất lượng văn học. API spec/usage limits xác nhận 500 byte/request, 5.000 ký tự/ngày ẩn danh. Không dùng endpoint Google/DeepL không chính thức hoặc API có phí.
+- Workerd local không ra Internet qua proxy phiên này; test mạng thực của handler dùng Node/Vite SSR với ProxyAgent và TLS trust kế thừa. Browser dịch dùng fixture có nhãn để kiểm tra lưu/hiển thị/resume; không coi fixture là bản dịch thật. Cần phân biệt bằng chứng upstream thật với nghiệm thu endpoint Worker production.
+- DTV: URL mẫu user cung cấp và robots/trang chủ đều 403/1010 từ Codex. Chỉ thử metadata, không tải nội dung sách mẫu có bản quyền. Parser/danh mục/tải tệp dùng fixture tổng hợp; test chặn URL ngoài, redirect ngoài và xác nhận chỉ dữ liệu được chọn. Có browser test tìm kiếm DTV/Google vẫn sẵn sàng khi catalog API trả lỗi.
+- Kiểm thử cuối cùng và version triển khai được bổ sung ở cuối tài liệu.
+
+Bản cuối: **35/35 Vitest và 22/22 Chromium E2E đạt**. Sau chỉnh offset bookmark dài và vị trí toast, 4 luồng reader/source liên quan chạy lại đều đạt; build và deploy dry-run đạt. Audit production báo 0 vulnerabilities. Smoke browser với upstream MyMemory thật (Node proxy/TLS chuẩn của phiên): hai đoạn tiếng Anh dịch sang tiếng Việt, lưu/hiển thị cặp đoạn và ảnh 1440px/390px, không tràn ngang. Ảnh và dữ liệu smoke chỉ dùng nội dung tổng hợp của test.
+
+Triển khai lúc **08:36 ngày 21/10/2026 (+07:00)**, version `ddf07dfd-76b6-47eb-ac97-d017d60dfa47`; API Cloudflare xác nhận 100% traffic. Đọc settings xác nhận `TRANSLATION_ENABLED=true`, `TRANSLATION_PROVIDER=mymemory`, `LOCAL_TRANSLATION=false`. HTTP capabilities từ Codex vẫn 403/1010; không vô hiệu TLS hoặc thay đổi firewall để vượt chặn. Không đổi gói trả phí, không tạo project Supabase mới hoặc thêm tài nguyên AI.

@@ -9,7 +9,7 @@
 - ✅ Hai cột trong cùng hàng (cuộn chung nên căn theo đoạn), xen kẽ, nguyên văn, bản dịch; chỉnh cỡ chữ/nền, mục lục, tìm chương, vị trí thủ công, ghi chú, tô sáng.
 - ✅ Bản dịch thủ công, khóa, lịch sử; chọn từ/cụm có ngữ cảnh, trạng thái học; CSV có preview/mapping và báo cáo trùng.
 - ✅ Kệ đang đọc/đọc sau/yêu thích/hoàn thành, tìm metadata/ngôn ngữ, sao lưu gồm originals.
-- 🔌 Dịch thật LibreTranslate, sample/chương, chỉ cặp có model, consent và xử lý 429. Cần endpoint và kiểm thử sáu chiều thực sự; không cam kết model VI tồn tại.
+- ✅ MyMemory API chính thức: đã kiểm tra sáu chiều Việt/Anh/Trung bằng câu thử thật; consent, dịch trang/chương/toàn sách, lưu từng đoạn, dừng quota/lỗi và tiếp tục phần thiếu. Free 5.000 ký tự/ngày theo IP dịch vụ, không vô hạn. LibreTranslate vẫn là adapter tùy chọn, cần endpoint/model riêng.
 - 🔌 Supabase Auth/private Storage/RLS; tài khoản độc lập, tải lại trên thiết bị khác. Project hiện có đã xác nhận bảng/RLS/bucket riêng tư; còn nghiệm thu hai tài khoản qua Auth/Storage live.
 - ✅ Cloudflare Worker/Static Assets: cấu hình production trỏ Worker hiện có `readbook`. Xem ngày nghiệm thu trong `validation.md`.
 - ✅ Fallback Hanzii sao chép và mở homepage; ⏳ xác minh deep link/API/OAuth, Pro, CSV Hanzii chính thức.
@@ -17,6 +17,9 @@
 - ⏳ Tra popup có từ điển thực, phonetics, pinyin, giản/phồn, giải nghĩa chọn ngôn ngữ; hiện chỉ lưu nghĩa nhập tay và TTS.
 - ✅ Noto Sans tự lưu với bộ ký tự Việt/Latin, precache offline.
 - ⏳ Chọn font family, lề, khoảng dòng, chiều rộng, lật trang, chạm hiện nghĩa; tìm toàn sách, timer đọc bền vững, câu hay và chọn nhiều từ rời.
+
+- ✅ Đọc liền mạch, cuộn liên tục tự nối chương hoặc lật trang, thanh kéo lượng chữ/trang, điều hướng cố định; lưu offset khi phân trang.
+- ✅ Ô tìm đầu sách DTV/Google site-search; danh mục metadata khi nguồn cho phép. 🔌 Nguồn DTV mẫu trả 403 từ Codex, chưa nghiệm thu danh mục live; không báo đã tải đầu sách thực tế.
 
 ## Giai đoạn 2 — trẻ em và nghe đọc
 
@@ -34,8 +37,8 @@
 - ⏳ Queue nền bền vững: lease, retry giới hạn, pause/cancel/resume, tiến độ/notifications, không trùng request sau kết quả mơ hồ; tách sách lớn theo chương ở DB.
 - ⏳ Nhà cung cấp chính thức bổ sung (DeepL/Google/AI/local model sau xác minh): capability, free-quota/cost controls, không tự phí/chuyển nhà cung cấp.
 - ⏳ Dịch đoạn/chương/toàn sách/khi đọc, style, ngữ cảnh hai bên, nhân vật/xưng hô/glossary, metadata source/version; so sánh khi được yêu cầu; advanced proofreading; QA thiếu/lặp/ngôn ngữ/số/thuật ngữ; dễ đọc là chức năng riêng có nhãn.
-- ✅ PDF có chữ và PDF scan: PDF.js/Tesseract chạy trên thiết bị, tự tải engine/model từ cùng website; chọn khoảng trang, tự động/OCR tất cả/chỉ lớp chữ, tiến độ, hủy, sửa văn bản trước khi lưu, đối chiếu trang gốc trong trình đọc. Việt/Anh/Trung giản thể; 50 MB/tệp, 200 trang/lượt và tối đa 50 trang OCR/lượt. Giữ nguyên PDF gốc.
-- ⏳ Nhập ảnh rời, tự xoay/dewarp, bảng/nhiều cột và hiệu chỉnh bố cục nâng cao; OCR job nền và resume bền vững. Không hứa giữ mọi bố cục.
+- ✅ PDF có chữ và PDF scan: PDF.js/Tesseract chạy trên thiết bị, tự tải engine/model từ cùng website; chọn khoảng trang, tự động/OCR tất cả/chỉ lớp chữ, tiến độ, hủy, sửa văn bản trước khi lưu, đối chiếu trang gốc trong trình đọc. Việt/Anh/Trung giản thể; 50 MB/tệp; xử lý toàn bộ tệp, không giới hạn số trang. Checkpoint từng trang trong IndexedDB để tiếp tục. Giữ nguyên PDF gốc.
+- ⏳ Nhập ảnh rời, tự xoay/dewarp, bảng/nhiều cột và hiệu chỉnh bố cục nâng cao; OCR job nền khi tab đóng, xoay/dewarp và resume đa thiết bị. Không hứa giữ mọi bố cục.
 - ⏳ Căn chỉnh bản dịch nhập sẵn; rich illustrations/metadata sau nhập; series/tập/chương và theo dõi chương mới ở nguồn hỗ trợ.
 - ⏳ Online providers/API/OPDS/RSS chính thức; metadata khác full-text, phân quyền/bản quyền rõ; lọc ba ngôn ngữ, tác giả/thể loại/tuổi/trình độ/độ dài; URL import theo allowlist chống SSRF/redirect/DNS rebinding, không DRM/paywall.
 - ✅ SRS cơ bản: hiện nghĩa, tự đánh giá chưa nhớ/còn khó/đã nhớ, lịch 10 phút/ngày, lưu cùng từ vựng local/cloud.
@@ -51,6 +54,6 @@
 - ⏳ Đánh giá luyện đọc khi công nghệ và dữ liệu thực tế đủ tốt: sau lượt đọc, không dùng STT một mình chấm phát âm, không coi phương ngữ là lỗi; phụ huynh xác nhận khi không chắc, không chẩn đoán.
 - ⏳ Thống kê nâng cao, gợi ý bài tiếp theo theo kết quả thực, xử lý/xóa dữ liệu trẻ theo consent, không training ngoài mục đích cho phép.
 
-## Nghiệm thu production còn bị chặn
+## Nghiệm thu production còn lại
 
-Cần kết nối Supabase/Cloudflare được chủ tài khoản cấp qua luồng xác thực/kho secrets và endpoint dịch tự quản lý. Codex sẽ kiểm tra free quota, tạo tài nguyên riêng, migrate, Auth redirects, CORS, deploy, kiểm thử hai tài khoản/thiết bị, phiên đăng nhập, original private file, dịch sáu chiều, quota/mất mạng, Hanzii và secret leak trên URL HTTPS. Không yêu cầu chủ ứng dụng tự tạo bảng/bucket hay tự chạy deploy. Chưa có bằng chứng cho bất kỳ bước remote nào trong danh sách này.
+Đã có kết nối Cloudflare/Supabase, deploy Worker hiện có và đọc cấu hình project/bucket/RLS/Auth. MyMemory đã được bật và kiểm tra upstream thật, không cần endpoint dịch tự quản lý cho provider mặc định. Còn nghiệm thu hosted Auth/Storage bằng hai tài khoản, nhiều thiết bị và private files trên URL production; mạng Codex vẫn nhận HTTP 403/1010 từ URL công khai. DTV cũng chặn server fetch ở môi trường kiểm tra, vì vậy chỉ xác nhận bộ tìm kiếm mở trong browser và parser/flow qua fixture, chưa xác nhận danh mục live. Không coi các phần bị chặn là đã nghiệm thu xong.
