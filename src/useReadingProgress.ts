@@ -58,5 +58,5 @@ export function useReadingProgress({book,paper,ready,onProgress,onRemote}:{book:
     window.addEventListener('scroll',scroll,{passive:true});window.addEventListener('pagehide',save);document.addEventListener('visibilitychange',visibility);
     return()=>{save();if(timer.current)clearTimeout(timer.current);window.removeEventListener('scroll',scroll);window.removeEventListener('pagehide',save);document.removeEventListener('visibilitychange',visibility);};
   },[ready]);
-  return {record};
+  return {record,reveal:restore};
 }

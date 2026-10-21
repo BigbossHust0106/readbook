@@ -106,7 +106,7 @@ OCR chạy trong browser worker, không gọi API tính phí và không gửi tr
 
 ## Trình đọc và tìm sách DTV — 21/10/2026
 
-Chọn **Lật trang** hoặc **Cuộn liên tục**. Thanh kéo 500–8.000 ký tự gốc/trang điều chỉnh phân trang; vị trí lưu có offset trong đoạn để khôi phục khi đổi lượng chữ. Cuộn liên tục tự nối thêm chương khi đến cuối phần đang tải. Nút trước/sau luôn cố định ở đáy màn hình. Các đoạn hiển thị thành dòng văn xuôi, bỏ đường ngăn và hàng công cụ chen giữa; chạm/hover/focus đoạn để hiện thao tác. Không sửa ngôn ngữ hoặc văn bản gốc khi đổi cách đọc.
+Chọn **Lật trang** hoặc **Cuộn liên tục**. Thanh kéo 500–8.000 ký tự gốc/trang điều chỉnh phân trang; vị trí lưu có offset trong đoạn để khôi phục khi đổi lượng chữ. Cuộn liên tục tự nối thêm chương khi đến cuối phần đang tải. Máy tính có nút trước/sau ở đáy màn hình; điện thoại vuốt ngang. Chế độ lật trang đo bố cục thực để vừa màn hình. Các đoạn hiển thị thành dòng văn xuôi, bỏ đường ngăn và hàng công cụ chen giữa; chạm/hover/focus đoạn để hiện thao tác. Không sửa ngôn ngữ hoặc văn bản gốc khi đổi cách đọc.
 
 Trong **Thêm sách → Tìm sách trên DTV-Ebook**, gõ tên sách/tác giả/chủ đề rồi **Tìm trên DTV** (giao diện tìm kiếm của nguồn) hoặc **Tìm bằng Google trong DTV**. **Tải danh mục mới** chỉ đọc tiêu đề/link trên trang chủ nếu nguồn cho phép, lọc danh sách theo từ khóa tại ứng dụng. Mở đúng trang nguồn để tải, rồi dùng **Chọn tệp sách**. Metadata không đồng nghĩa quyền tải toàn văn. Không tải hàng loạt hoặc vượt CAPTCHA/đăng nhập. Nguồn mẫu hiện trả 403/1010 từ mạng Codex; phần tải danh mục trực tiếp chưa nghiệm thu live. Tìm kiếm mở trong trình duyệt vẫn có sẵn khi API danh mục bị chặn.
 
@@ -118,6 +118,16 @@ Mục nâng cao nhận liên kết cùng miền dtv-ebook.com.vn/www.dtv-ebook.c
 
 Mở **Nhóm đọc & cloud**, đặt tên hiển thị, tạo nhóm rồi **Thêm sách vào nhóm**. Chủ nhóm tạo mã mời, người khác đăng nhập và nhập mã trong cùng màn hình. Tệp giống hệt và cùng ngôn ngữ được dùng lại trong nhóm; mỗi thành viên có tag tiến độ riêng, ghi chú/bản dịch riêng. Bấm **Xem tag tiến độ** để xem các thành viên đang đọc đến đâu.
 
-Trình đọc tự mở lại sách và vị trí cuối. Máy tính bấm khoảng trống/lề bên trái hoặc phải để lật trang, hoặc dùng phím mũi tên; điện thoại vuốt ngang. Chạm trực tiếp chữ để tra từ. **Hiện công cụ** mở thanh phía trên tại vị trí đang đọc. Thanh bên trái mở mục lục/thư viện/từ vựng khi hover; mobile dùng nút menu.
+Trình đọc tự mở lại sách và vị trí cuối. Chế độ lật trang chứa phần chữ vừa một màn hình. Máy tính dùng nút trái/phải, bấm lề hoặc phím mũi tên; điện thoại vuốt ngang. Bôi đen từ/cụm để mở bảng dịch và lưu từ. **Hiện công cụ** mở thanh phía trên tại vị trí đang đọc. Nút ba sọc mở cùng menu thư viện/từ vựng/nhóm/cài đặt trên máy tính và điện thoại; khi đọc có thêm mục lục và tìm toàn sách.
 
 Đồng bộ dùng polling khoảng 10 giây khi online; vị trí offline được gửi lại khi nối mạng. Google Dịch mở qua liên kết theo từ, dịch nổi dùng MyMemory hoặc mô hình đã có sẵn trong trình duyệt; MyMemory có hạn mức miễn phí.
+
+## Đồng bộ ngoại tuyến và tìm kiếm toàn sách
+
+Ghi chú, bản dịch thủ công, kệ sách, từ vựng và hồ sơ trẻ được ghi vào thiết bị trước; khi có mạng ứng dụng tự gửi lại khi tab mở. Trong **Cài đặt & kết nối → Thay đổi chờ đồng bộ**, xem mục chờ gửi, bấm đồng bộ hoặc tải bản sao. Nếu hai máy sửa cùng một nội dung, ứng dụng giữ hai bản; chọn bản trên thiết bị hoặc trên cloud. Chọn bản áp dụng cho cả mục đang hiển thị. Đừng xóa dữ liệu trình duyệt khi còn thay đổi chưa gửi.
+
+Mở **Mục lục**, nhập vào **Tìm chương hoặc toàn sách** để tìm cả nguyên văn và bản dịch hiện có, kể cả chương chưa mở. Hỗ trợ tìm tiếng Việt không dấu. Bấm kết quả để tới đoạn đó. Trong công cụ đọc có thêm phông chữ, khoảng dòng và chiều rộng; tùy chọn lưu riêng trên từng thiết bị.
+
+Thêm sách, sửa nội dung gốc và thao tác tệp gốc cloud vẫn cần mạng. Đợt này chưa thêm dịch vụ AI trả phí hoặc xử lý tác vụ khi trình duyệt đóng.
+
+Ở chế độ lật trang, bấm **Hiện công cụ** để đổi cỡ chữ, phông, khoảng dòng, chiều rộng hoặc chuyển sang cuộn liên tục. Khi đóng công cụ, trang đọc vừa màn hình và không cần kéo dọc. Bôi đen từ/cụm để dịch; bảng nổi cho chỉnh nghĩa và **Lưu từ**, không tự hiện khi rê chuột. Giới hạn phần bôi đen là 1.000 ký tự; dịch trang/chương vẫn là thao tác riêng trong công cụ.

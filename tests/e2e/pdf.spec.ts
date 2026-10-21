@@ -1,3 +1,4 @@
+import {navigate,openMenu,showTools,hideTools,readyPage} from './helpers';
 import { test, expect } from '@playwright/test';
 import { PDFDocument, StandardFonts } from 'pdf-lib';
 import { writeFile } from 'node:fs/promises';
@@ -28,15 +29,15 @@ test('PDF text over the old 20 MB limit imports, can be corrected, and keeps the
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.getByRole('button', { name: /text-large/ }).click();
   await expect(page.locator('.paragraph-text').first()).toContainText('Corrected page one.');
-  await page.getByRole('button', { name: 'Đối chiếu PDF gốc' }).click();
+  await showTools(page);await page.getByRole('button', { name: 'Đối chiếu PDF gốc' }).click();
   await expect(page.getByRole('dialog')).toContainText('PDF gốc · trang 1');
   await expect(page.getByRole('dialog').getByRole('img', { name: 'Trang PDF gốc 1' })).toBeVisible();
   await page.getByRole('button', { name: 'Đóng', exact: true }).click();
-  await page.locator('.reading-paper').focus();await page.keyboard.press('ArrowRight');
+  await hideTools(page);await readyPage(page);await page.locator('.reading-paper:not(.viewport-measure)').focus();await page.keyboard.press('ArrowRight');
   await expect(page.locator('.paragraph-text').first()).toContainText('PDF page two');
   await page.reload();
-  await expect(page.locator('.reading-paper')).toBeVisible();
-  await page.getByRole('button', { name: 'Chỉnh thông tin sách' }).click();
+  await expect(page.locator('.reading-paper:not(.viewport-measure)')).toBeVisible();
+  await showTools(page);await page.getByRole('button', { name: 'Chỉnh thông tin sách' }).click();
   const downloaded = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Tải tệp gốc' }).click();
   const download = await downloaded;

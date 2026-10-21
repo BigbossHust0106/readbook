@@ -1,22 +1,20 @@
+import {queueEdit,flushEdits,syncEdits,overlayCollection} from './cloudSync';
+import {clean,equal,type Json} from './merge';
 import { canonicalBook, personalState, applyPersonal, type PersonalState } from "./bookState";
-import { openDB } from "idb";
-import { createClient } from "@supabase/supabase-js";
 import { assertBook, type Book, type Word, type Child } from "./model";
-const db = openDB("lasach-v1", 2, {
-  upgrade(db) {
-    if (!db.objectStoreNames.contains("books")) db.createObjectStore("books", { keyPath: "id" });
-    if (!db.objectStoreNames.contains("originals")) db.createObjectStore("originals");
-    if (!db.objectStoreNames.contains("settings")) db.createObjectStore("settings");
-    if (!db.objectStoreNames.contains("pdfDrafts")) db.createObjectStore("pdfDrafts", { keyPath: ["draftId", "page"] });
-  },
-});
-export const supabase =
-  import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY
-    ? createClient(
-        import.meta.env.VITE_SUPABASE_URL,
-        import.meta.env.VITE_SUPABASE_ANON_KEY,
-      )
-    : null;
+import {db} from "./db";
+import {supabase as client} from "./supabase";
+export const supabase=client;
+const personalViews=new Map<string,Json>();
+const collectionViews=new Map<string,{id:string}[]>();
+const json=(value:unknown)=>clean(value) as Json;
+async function cacheFetched<T>(uid:string,key:string,generation:number,value:T):Promise<T> {
+  const tx=(await db).transaction('settings','readwrite');
+  if((await tx.store.get(`sync-version:${uid}`)||0)!==generation)value=await tx.store.get(key)??value;
+  else await tx.store.put(value,key);
+  await tx.done;return value;
+}
+function privateDoc(state?:Partial<PersonalState>) {return json({shelf:state?.shelf||'reading',overrides:state?.overrides||{},approved_children:state?.approved_children||[]});}
 const revisions = new Map<string, number>();
 const bases = new Map<string, Book>();
 const owners = new Map<string, string>();
@@ -42,22 +40,29 @@ export async function listBooks(cloud: boolean): Promise<Book[]> {
     return rows;
   }
   const uid = await userId();
-  if (currentAccount !== uid) { bases.clear(); owners.clear(); revisions.clear(); progress.clear(); currentAccount = uid; }
+  if (currentAccount !== uid) { bases.clear(); owners.clear(); revisions.clear(); progress.clear();personalViews.clear();collectionViews.clear(); currentAccount = uid; }
   type Cache = { rows: {id:string;owner_id:string;revision:number;document:Book}[]; states: PersonalState[] };
   let cache: Cache;
   if (navigator.onLine) {
-    const [books, states] = await Promise.all([supabase!.from("books").select("id,owner_id,revision,document").order("created_at",{ascending:false}),supabase!.from("reading_states").select("*")]);
-    if (books.error || states.error) throw books.error || states.error;
-    cache = {rows:books.data!,states:states.data!}; await setSetting(`cloud-cache:${uid}`, cache);
+    try {
+      const auth=await session(),generation=await getSetting(`sync-version:${uid}`,0);
+      const [books, states] = await Promise.all([supabase!.from("books").select("id,owner_id,revision,document").order("created_at",{ascending:false}).setHeader('Authorization',`Bearer ${auth.access_token}`).retry(false).abortSignal(AbortSignal.timeout(8000)),supabase!.from("reading_states").select("*").setHeader('Authorization',`Bearer ${auth.access_token}`).retry(false).abortSignal(AbortSignal.timeout(8000))]);
+      if (books.error || states.error) throw books.error || states.error;
+      cache = {rows:books.data!,states:states.data!};
+      cache=await cacheFetched(uid,`cloud-cache:${uid}`,generation,cache);
+    }catch(error){const cached=await getSetting<Cache|null>(`cloud-cache:${uid}`,null);if(!cached)throw error;cache=cached;}
   } else cache = await getSetting<Cache>(`cloud-cache:${uid}`,{rows:[],states:[]});
   const pending = await getSetting<Record<string,{position:Book['position'];at:string}>>(`progress-outbox:${uid}`,{});
   if(navigator.onLine) {
     for(const bid of Object.keys(pending)) if(!cache.rows.some(r=>r.id===bid)) delete pending[bid];
   }
   const quick=quickProgress(uid);
+  const edits=await syncEdits();
   const result = cache.rows.map(r=>{
     assertBook(r.document); revisions.set(r.id,r.revision); bases.set(r.id,r.document); owners.set(r.id,r.owner_id);
-    const state=cache.states.find(s=>s.book_id===r.id), book=applyPersonal(r.document,state);
+    const state=cache.states.find(s=>s.book_id===r.id),edit=edits.find(e=>e.kind==='reading'&&e.id===r.id);
+    const view=edit?.local||privateDoc(state);personalViews.set(`${uid}:${r.id}`,view);
+    const book=applyPersonal(r.document,{...state,...view as object});
     const candidates=[pending[r.id],progress.get(r.id),quick?.bid===r.id?quick:undefined].filter(Boolean).sort((a,b)=>b!.at.localeCompare(a!.at));
     const local=candidates[0];
     if(local && (!state?.position_updated_at || Date.parse(local.at)>Date.parse(state.position_updated_at))) book.position=local.position;
@@ -73,18 +78,21 @@ export async function saveBook(book: Book, cloud: boolean) {
   const base=canonicalBook(book), prior=bases.get(book.id), revision=revisions.get(book.id);
   const structural = !prior || JSON.stringify(base)!==JSON.stringify(canonicalBook(prior));
   if(structural) {
+    if(!navigator.onLine)throw new Error('Cần mạng để thêm sách hoặc sửa nội dung gốc. Ghi chú, bản dịch và từ vựng vẫn lưu ngoại tuyến.');
     if(owners.has(book.id) && owners.get(book.id)!==uid) throw new Error("Chỉ chủ sách được sửa nội dung gốc. Ghi chú và vị trí của bạn vẫn lưu riêng.");
     const values={id:book.id,owner_id:uid,title:book.title,language:book.language,content_hash:book.hash,document:base};
     const result=revision===undefined ? await supabase!.from("books").insert(values).select("revision").single() : await supabase!.from("books").update(values).eq("id",book.id).eq("revision",revision).select("revision").maybeSingle();
     if(result.error) throw result.error;
     if(!result.data) throw new Error("Sách đã thay đổi trên thiết bị khác. Hãy tải lại trước khi sửa tiếp.");
     revisions.set(book.id,result.data.revision); bases.set(book.id,base); owners.set(book.id,uid);
+    const cacheKey=`cloud-cache:${uid}`,tx=(await db).transaction('settings','readwrite');
+    const cache:{rows:{id:string;owner_id:string;revision:number;document:Book}[];states:PersonalState[]}=await tx.store.get(cacheKey)||{rows:[],states:[]};
+    cache.rows=[...cache.rows.filter(r=>r.id!==book.id),{id:book.id,owner_id:uid,revision:result.data.revision,document:base}];await tx.store.put(cache,cacheKey);
+    await tx.store.put((await tx.store.get(`sync-version:${uid}`)||0)+1,`sync-version:${uid}`);await tx.done;
   }
-  const {error}=await supabase!.rpc("save_personal_book_state",{bid:book.id,book_shelf:book.shelf,paragraph_overrides:personalState(book),child_ids:book.approvedChildren}).setHeader("Authorization",`Bearer ${auth.access_token}`);
-  if(error) {
-    if(!prior) {await supabase!.from("books").delete().eq("id",book.id).eq("owner_id",uid).setHeader("Authorization",`Bearer ${auth.access_token}`);bases.delete(book.id);revisions.delete(book.id);owners.delete(book.id);}
-    throw error;
-  }
+  const next=json({shelf:book.shelf,overrides:personalState(book),approved_children:book.approvedChildren});
+  await queueEdit('reading',book.id,book.title,personalViews.get(`${uid}:${book.id}`)||privateDoc(),next,uid);personalViews.set(`${uid}:${book.id}`,next);
+  void flushEdits().catch(()=>{});
 }
 export async function flushProgress() {
   if(flushing) return flushing;
@@ -178,17 +186,24 @@ export async function deleteBook(book: Book, cloud: boolean) {
   if (storageError) throw storageError;
   const { error } = await supabase!.from("books").delete().eq("id", book.id);
   if (error) throw error;
+  const tx=(await db).transaction('settings','readwrite'),cacheKey=`cloud-cache:${uid}`,cache=await tx.store.get(cacheKey);
+  if(cache){cache.rows=cache.rows.filter((r:{id:string})=>r.id!==book.id);cache.states=cache.states.filter((r:{book_id:string})=>r.book_id!==book.id);await tx.store.put(cache,cacheKey);}
+  await tx.store.put((await tx.store.get(`sync-version:${uid}`)||0)+1,`sync-version:${uid}`);await tx.done;
 }
 export async function getCollection<T>(
   name: "vocabulary" | "children",
   cloud: boolean,
 ): Promise<T[]> {
   if (!cloud) return (await (await db).get("settings", name)) || [];
-  const uid=await userId(),key=`collection:${uid}:${name}`;
-  if(!navigator.onLine)return getSetting<T[]>(key,[]);
-  const { data, error } = await supabase!.from(name).select("document");
-  if (error) throw error;
-  const values=data.map((r) => r.document as T);await setSetting(key,values);return values;
+  const auth=await session(),uid=auth.user.id,key=`collection:${uid}:${name}`;
+  let values=await getSetting<{id:string}[]>(key,[]);
+  if(navigator.onLine){
+    const generation=await getSetting(`sync-version:${uid}`,0);
+    const {data,error}=await supabase!.from(name).select('document').setHeader('Authorization',`Bearer ${auth.access_token}`).retry(false).abortSignal(AbortSignal.timeout(8000));
+    if(!error){values=data.map(r=>r.document as {id:string});values=await cacheFetched(uid,key,generation,values);}
+    else if(!await getSetting(key,null))throw error;
+  }
+  const view=await overlayCollection(name,values);collectionViews.set(`${uid}:${name}`,clean(view));return view as T[];
 }
 export async function saveCollection(
   name: "vocabulary" | "children",
@@ -199,14 +214,10 @@ export async function saveCollection(
     await (await db).put("settings", values, name);
     return;
   }
-  const uid = await userId();
-  // Upsert only: avoid non-atomic delete/reinsert which could lose data on connection failure.
-  if (values.length) {
-    const { error } = await supabase!
-      .from(name)
-      .upsert(values.map((v) => ({ id: v.id, owner_id: uid, document: v })));
-    if (error) throw error;
-  }
+  const uid=await userId(),key=`${uid}:${name}`;
+  const prior=collectionViews.get(key)||await getSetting<{id:string}[]>(`collection:${uid}:${name}`,[]);
+  for(const value of values){const before=prior.find(v=>v.id===value.id);if(!equal(before,value))await queueEdit(name,value.id,'term' in value?value.term:value.nickname,json(before||null),json(value),uid);}
+  collectionViews.set(key,clean(values));void flushEdits().catch(()=>{});
 }
 export async function deleteItem(
   name: "vocabulary" | "children",
@@ -214,8 +225,10 @@ export async function deleteItem(
   cloud: boolean,
 ) {
   if (cloud) {
-    const { error } = await supabase!.from(name).delete().eq("id", id);
-    if (error) throw error;
+    const uid=await userId(),key=`${uid}:${name}`,view=collectionViews.get(key)||await getCollection<{id:string}>(name,true);
+    const before=view.find(v=>v.id===id);if(!before)return;
+    await queueEdit(name,id,'term' in before?String(before.term):'nickname' in before?String(before.nickname):id,json(before),null,uid);
+    collectionViews.set(key,view.filter(v=>v.id!==id));void flushEdits().catch(()=>{});
   } else {
     const values = await getCollection<{ id: string }>(name, false);
     await (
@@ -282,5 +295,5 @@ export async function migrateDeviceData(report:(done:number,total:number)=>void)
   await saveCollection('vocabulary',words,true);
   const last=await lastReadBook(false);const id=last&&ids[last] || ids[local.find(b=>b.position.chapter||b.position.paragraph||b.position.offset)?.id || ''];
   if(id) {const b=(await listBooks(true)).find(b=>b.id===id);if(b)await saveProgress(b,b.position,true);}
-  return id || null;
+  await flushEdits();return id || null;
 }

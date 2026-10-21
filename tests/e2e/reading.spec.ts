@@ -1,3 +1,4 @@
+import {navigate,openMenu,showTools,hideTools,readyPage} from './helpers';
 import { test, expect, type Page } from "@playwright/test";
 async function pasteBook(page: Page, title = "Sách kiểm thử", lang = "vi") {
   await page.getByRole("button", { name: "Thêm sách", exact: true }).click();
@@ -50,11 +51,11 @@ test("import, manual translation, locked edit, note, position, vocabulary and pe
   await page.getByRole("button", { name: "Lưu từ từ đoạn 1" }).click();
   await page.getByRole("textbox", { name: "Từ muốn lưu" }).fill("Xin chào");
   await page.getByRole("textbox", { name: "Nghĩa của từ" }).fill("Hello");
-  await page.getByRole("button", { name: "Lưu từ", exact: true }).click();
+  await page.getByRole("button", { name: "Lưu từ", exact: true }).click();await page.getByRole("button",{name:"Đóng tra từ"}).click();
   await page.getByRole("button", { name: "Lưu vị trí đoạn 2" }).click();
   await expect(page.locator(".paragraph").nth(1)).toHaveClass(/current/);
   await page.reload();
-  await expect(page.locator(".reading-paper")).toBeVisible();
+  await expect(page.locator(".reading-paper:not(.viewport-measure)")).toBeVisible();
   await expect(page.locator(".translated").first()).toContainText(
     "Hello world.",
   );
@@ -62,8 +63,8 @@ test("import, manual translation, locked edit, note, position, vocabulary and pe
     "Ghi chú được lưu.",
   );
   await expect(page.locator(".paragraph").nth(1)).toHaveClass(/current/);
-  await page.getByRole("button", { name: "Thư viện", exact: true }).click();
-  await page.getByRole("button", { name: /Sổ từ vựng/ }).click();
+  await navigate(page, 'Thư viện của tôi');
+  await navigate(page, /Sổ từ vựng/);
   await expect(page.locator(".word-row")).toContainText("Xin chào");
   await expect(page.locator(".word-row")).toContainText("Sách kiểm thử");
 });
@@ -108,7 +109,7 @@ test("child profile sees only approved books and no external lookup", async ({
     .getByRole("textbox", { name: "Tên sách", exact: true })
     .fill("Chưa duyệt");
   await page.getByRole("button", { name: "Nhập & lưu sách" }).click();
-  await page.getByRole("button", { name: "Góc trẻ em", exact: true }).click();
+  await navigate(page, "Góc trẻ em");
   await page.getByLabel("Biệt danh").fill("An");
   await page.getByRole("button", { name: "Thêm hồ sơ" }).click();
   await page.getByRole("checkbox", { name: /Được duyệt/ }).click();
@@ -142,7 +143,7 @@ test("quota failure preserves already translated paragraphs and resumes only mis
   await page.reload();
   await pasteBook(page);
   await page.getByRole("button", { name: /Sách kiểm thử/ }).click();
-  await page.getByText("Dịch & nghe", { exact: false }).first().click();
+  await showTools(page);await page.getByText("Dịch & nghe", { exact: false }).first().click();
   await page.getByRole("checkbox", { name: /Tôi đồng ý/ }).check();
   let requests: string[] = [];
   let quota = true;
@@ -200,7 +201,7 @@ test("recording starts only after explicit action, stays local, and can be delet
   });
   await page.reload();
   await pasteBook(page, "Bài luyện đọc");
-  await page.getByRole("button", { name: "Góc trẻ em", exact: true }).click();
+  await navigate(page, "Góc trẻ em");
   await page.getByLabel("Biệt danh").fill("Bé An");
   await page.getByRole("button", { name: "Thêm hồ sơ" }).click();
   await page.getByRole("checkbox", { name: /Bài luyện đọc/ }).click();

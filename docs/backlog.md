@@ -10,13 +10,13 @@
 - ✅ Bản dịch thủ công, khóa, lịch sử; chọn từ/cụm có ngữ cảnh, trạng thái học; CSV có preview/mapping và báo cáo trùng.
 - ✅ Kệ đang đọc/đọc sau/yêu thích/hoàn thành, tìm metadata/ngôn ngữ, sao lưu gồm originals.
 - ✅ MyMemory API chính thức: đã kiểm tra sáu chiều Việt/Anh/Trung bằng câu thử thật; consent, dịch trang/chương/toàn sách, lưu từng đoạn, dừng quota/lỗi và tiếp tục phần thiếu. Free 5.000 ký tự/ngày theo IP dịch vụ, không vô hạn. LibreTranslate vẫn là adapter tùy chọn, cần endpoint/model riêng.
-- 🔌 Supabase Auth/private Storage/RLS; tài khoản độc lập, tải lại trên thiết bị khác. Project hiện có đã xác nhận bảng/RLS/bucket riêng tư; còn nghiệm thu hai tài khoản qua Auth/Storage live.
+- ✅ Supabase Auth/private Storage/RLS; nhóm và nhiều thiết bị đã kiểm tra hosted bằng tài khoản tạm, ghi chú/vị trí riêng. URL Cloudflare production vẫn bị 403 từ mạng kiểm thử; xem validation.
 - ✅ Cloudflare Worker/Static Assets: cấu hình production trỏ Worker hiện có `readbook`. Xem ngày nghiệm thu trong `validation.md`.
 - ✅ Fallback Hanzii sao chép và mở homepage; ⏳ xác minh deep link/API/OAuth, Pro, CSV Hanzii chính thức.
 - ⏳ Nhập đồng thời bản gốc/bản dịch có sẵn và căn chỉnh bằng UI; sửa bìa/mục lục/ngôn ngữ/thể loại sau nhập; bookmark nhiều vị trí riêng.
 - ⏳ Tra popup có từ điển thực, phonetics, pinyin, giản/phồn, giải nghĩa chọn ngôn ngữ; hiện chỉ lưu nghĩa nhập tay và TTS.
 - ✅ Noto Sans tự lưu với bộ ký tự Việt/Latin, precache offline.
-- ⏳ Chọn font family, lề, khoảng dòng, chiều rộng, lật trang, chạm hiện nghĩa; tìm toàn sách, timer đọc bền vững, câu hay và chọn nhiều từ rời.
+- ✅ Chọn Noto Sans/serif/system, khoảng dòng, chiều rộng; lật trang vừa viewport, menu drawer chung, bôi đen hiện nghĩa; tìm toàn sách không dấu Việt (nguyên văn/bản dịch), đi tới kết quả. ⏳ Lề tùy chỉnh, timer đọc bền vững, câu hay và chọn nhiều từ rời.
 
 - ✅ Đọc liền mạch, cuộn liên tục tự nối chương hoặc lật trang, thanh kéo lượng chữ/trang, điều hướng cố định; lưu offset khi phân trang.
 - ✅ Ô tìm đầu sách DTV/Google site-search; danh mục metadata khi nguồn cho phép. 🔌 Nguồn DTV mẫu trả 403 từ Codex, chưa nghiệm thu danh mục live; không báo đã tải đầu sách thực tế.
@@ -42,8 +42,8 @@
 - ⏳ Căn chỉnh bản dịch nhập sẵn; rich illustrations/metadata sau nhập; series/tập/chương và theo dõi chương mới ở nguồn hỗ trợ.
 - ⏳ Online providers/API/OPDS/RSS chính thức; metadata khác full-text, phân quyền/bản quyền rõ; lọc ba ngôn ngữ, tác giả/thể loại/tuổi/trình độ/độ dài; URL import theo allowlist chống SSRF/redirect/DNS rebinding, không DRM/paywall.
 - ✅ SRS cơ bản: hiện nghĩa, tự đánh giá chưa nhớ/còn khó/đã nhớ, lịch 10 phút/ngày, lưu cùng từ vựng local/cloud.
-- ✅ Tra từ nổi khi hover/chạm, cache 30 ngày, lưu sổ từ; liên kết Google Dịch. ⏳ Đa nghĩa/ngữ cảnh/lemma/idiom/phrasal verbs; multi-selection; decks theo sách/ngôn ngữ/chủ đề, CSV Anki đã xác minh; cloze/listening/dịch hai chiều/reading questions.
-- ✅ PWA shell, cache sách cloud đã mở, outbox vị trí offline, polling 10 giây và khôi phục phiên đăng nhập. ✅ Nhóm đọc với sách canonical chống trùng hash/ngôn ngữ trong nhóm, mã mời, tag vị trí từng tài khoản và annotations riêng. ✅ Nút chuyển dữ liệu thiết bị sang cloud. ⏳ Outbox cho mọi chỉnh sửa, tải trước audio/deck, quản lý eviction, merge annotations đồng thời, Supabase Realtime.
+- ✅ Bôi đen để dịch, chỉnh nghĩa và lưu từ trong cùng bảng; cache 30 ngày; liên kết Google Dịch. ⏳ Đa nghĩa/ngữ cảnh/lemma/idiom/phrasal verbs; multi-selection; decks theo sách/ngôn ngữ/chủ đề, CSV Anki đã xác minh; cloze/listening/dịch hai chiều/reading questions.
+- ✅ PWA shell, cache sách cloud đã mở, outbox vị trí offline, polling 10 giây và khôi phục phiên đăng nhập. ✅ Nhóm đọc với sách canonical chống trùng hash/ngôn ngữ trong nhóm, mã mời, tag vị trí từng tài khoản và annotations riêng. ✅ Nút chuyển dữ liệu thiết bị sang cloud. ✅ Outbox ghi chú/bản dịch/kệ/phê duyệt trẻ/từ vựng/hồ sơ trẻ; CAS, merge khác trường và chọn phiên bản khi xung đột. ⏳ Outbox cấu trúc sách/tệp gốc, tải trước audio/deck, quản lý eviction, Supabase Realtime.
 - ⏳ Bộ sưu tập/tag/sắp xếp nâng cao; xóa toàn tài khoản và tất cả tệp liên quan, mã hóa thiết bị theo thiết kế threat model, telemetry consent tách riêng.
 - ⏳ Hanzii notebook CSV có schema đã xác minh và log import/export cloud; API/OAuth/Pro chỉ khi nhà cung cấp cho phép. Không scrape cookie/password/API nội bộ.
 

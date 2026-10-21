@@ -1,3 +1,4 @@
+import {navigate,openMenu,showTools,hideTools,readyPage} from './helpers';
 import { test, expect } from "@playwright/test";
 import JSZip from "jszip";
 test("imports a real EPUB spine in order and downloads the identical original file", async ({
@@ -34,9 +35,9 @@ test("imports a real EPUB spine in order and downloads the identical original fi
   await page.getByRole("button", { name: /Chinese/ }).click();
   await expect(page.locator(".paragraphs")).toContainText("你好，世界！");
   await expect(page.locator(".paragraphs")).not.toContainText("第二段。");
-  await page.getByLabel("Chương", { exact: true }).selectOption("1");
+  await showTools(page);await page.getByLabel("Chương", { exact: true }).selectOption("1");await hideTools(page);await readyPage(page);
   await expect(page.locator(".paragraphs")).toContainText("第二段。");
-  await page.getByRole("button", { name: "Chỉnh thông tin sách" }).click();
+  await showTools(page);await page.getByRole("button", { name: "Chỉnh thông tin sách" }).click();
   const wait = page.waitForEvent("download");
   await page.getByRole("button", { name: "Tải tệp gốc" }).click();
   const download = await wait;
@@ -75,7 +76,7 @@ test("previews and maps CSV with safe export and duplicate merging", async ({
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: /Sổ từ vựng/ }).click();
+  await navigate(page, /Sổ từ vựng/);
   await page.locator('input[type=file][accept=".csv"]').setInputFiles({
     name: "words.csv",
     mimeType: "text/csv",
@@ -92,7 +93,7 @@ test("previews and maps CSV with safe export and duplicate merging", async ({
   await page.getByRole("button", { name: "Nhập dữ liệu đã ánh xạ" }).click();
   await expect(page.locator(".word-row")).toHaveCount(2);
   await page.reload();
-  await page.getByRole("button", { name: /Sổ từ vựng/ }).click();
+  await navigate(page, /Sổ từ vựng/);
   await expect(page.locator(".word-row")).toHaveCount(2);
 });
 test("production PWA reads local data after network loss and has no horizontal mobile overflow", async ({
@@ -143,9 +144,7 @@ test("backup restores into a separate browser with original text and rejects mal
     .fill("Bản sao an toàn");
   await page.getByRole("button", { name: "Nhập & lưu sách" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await page
-    .getByRole("button", { name: "Cài đặt & kết nối", exact: true })
-    .click();
+  await navigate(page, "Cài đặt & kết nối");
   const wait = page.waitForEvent("download");
   await page.getByRole("button", { name: "Sao lưu dữ liệu" }).click();
   const output = await wait;
@@ -158,9 +157,7 @@ test("backup restores into a separate browser with original text and rejects mal
   const other = await browser.newContext();
   const fresh = await other.newPage();
   await fresh.goto("http://127.0.0.1:5173");
-  await fresh
-    .getByRole("button", { name: "Cài đặt & kết nối", exact: true })
-    .click();
+  await navigate(fresh, "Cài đặt & kết nối");
   await fresh
     .locator('input[type=file][accept=".json"]')
     .setInputFiles({
@@ -169,17 +166,13 @@ test("backup restores into a separate browser with original text and rejects mal
       buffer,
     });
   await expect(fresh.getByRole("status")).toContainText("Đã khôi phục");
-  await fresh
-    .getByRole("button", { name: "Thư viện của tôi", exact: true })
-    .click();
+  await navigate(fresh, "Thư viện của tôi");
   await fresh.getByRole("button", { name: /Bản sao an toàn/ }).click();
   await expect(fresh.locator(".paragraphs")).toContainText(
     "Văn bản gốc cần sao lưu.",
   );
-  await fresh.getByRole("button", { name: "Thư viện", exact: true }).click();
-  await fresh
-    .getByRole("button", { name: "Cài đặt & kết nối", exact: true })
-    .click();
+  await navigate(fresh, 'Thư viện của tôi');
+  await navigate(fresh, "Cài đặt & kết nối");
   parsed.books[0].position.chapter = -1;
   await fresh
     .locator('input[type=file][accept=".json"]')

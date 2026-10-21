@@ -24,6 +24,7 @@ export default defineConfig({
     },
     {
       command: "npm run dev -- --port 5173",
+      env: { VITE_SUPABASE_URL: "https://offline-fixture.supabase.co", VITE_SUPABASE_ANON_KEY: "fixture-public-key" },
       url: "http://127.0.0.1:5173",
       reuseExistingServer: !process.env.CI,
     },

@@ -1933,3 +1933,56 @@ body.reading-mode .app > main { margin-left:58px; width:calc(100% - 58px); }
 }
 /* Leave the first line clear of the floating mobile menu when changing pages. */
 .reading-paper { scroll-margin-top:82px; }
+.sync-entry { margin-top:18px;padding:16px 0;border-top:1px solid #dce4d8; }
+.sync-compare { display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0; }
+.sync-compare>div { min-width:0;padding:12px;border:1px solid #dce4d8;border-radius:8px; }
+.sync-compare pre { white-space:pre-wrap;overflow-wrap:anywhere;max-height:260px;overflow:auto;font:inherit;font-size:14px; }
+@media(max-width:600px){.sync-compare { grid-template-columns:1fr; }}
+.reading-paper .paragraph p { font-family:var(--reader-font,"Noto Sans",sans-serif);line-height:var(--reader-leading,1.85); }
+.book-search-results .flyout-item small { white-space:normal;overflow-wrap:anywhere;line-height:1.6; }
+/* One navigation drawer on desktop and phone, including while reading. */
+.app > .sidebar,body.reading-mode .app > .sidebar { display:flex;visibility:hidden;transform:translateX(-105%);width:min(350px,calc(100vw - 28px));padding:24px 18px;overflow-y:auto;z-index:120;transition:transform .18s ease,visibility .18s;box-shadow:none; }
+.app > .sidebar.open,body.reading-mode .app > .sidebar.open { visibility:visible;transform:translateX(0);box-shadow:8px 0 30px #18362c25; }
+.app > main,body.reading-mode .app > main { margin-left:0;width:100%; }
+.sidebar .brand > span:last-child,.sidebar .workspace-label,.sidebar .storage { display:block; }
+.sidebar .storage { display:flex; }
+.sidebar nav { display:flex;flex-direction:column;gap:5px;margin-top:12px; }
+.sidebar nav button { font-size:13px;justify-content:flex-start; }
+.sidebar nav button svg { width:19px;height:19px; }
+.sidebar .sidebar-note { display:none; }
+.drawer-close { position:absolute;top:8px;right:8px;padding:6px; }
+.drawer-backdrop { position:fixed;inset:0;border:0;border-radius:0;background:#19302466;z-index:110;cursor:default; }
+.mobile-menu { display:flex; }
+.reader-mobile-menu { display:flex;position:fixed;top:10px;left:12px;z-index:85;padding:9px;background:#fffdf8;box-shadow:0 2px 10px #183c3020; }
+.reader-sidebar-panel { border-top:1px solid #dde5d7;padding-top:16px;margin-top:16px; }
+.reader-sidebar-panel .flyout-tabs { gap:5px; }
+.reader-sidebar-panel .flyout-tabs button { font-size:11px;padding:7px; }
+.reader-sidebar-panel input { width:100%; }
+.reader-sidebar-panel .flyout-item { width:100%;text-align:left; }
+.reader-controls.tools-floating { left:12px; }
+.word-popover { width:min(360px,calc(100vw - 24px));max-height:calc(100dvh - 82px);overflow-y:auto; }
+.word-popover label { display:flex;flex-direction:column;gap:5px;margin:10px 0;font-size:12px; }
+.word-popover textarea { width:100%;min-height:0;font-size:14px; }
+.page-frame { min-width:0; }
+body.reading-paged { overflow:hidden; }
+body.reading-paged .app,body.reading-paged .app>main { height:100dvh;min-height:0; }
+.reader.is-paged { height:100dvh;min-height:0;padding:62px 22px 66px;overflow:hidden;display:flex;flex-direction:column; }
+.is-paged .reader-control-slot { display:none; }
+.is-paged .reader-control-slot:has(.tools-floating) { display:contents; }
+.is-paged .reader-subhead { display:none; }
+.is-paged .page-frame { position:relative;flex:1;min-height:0;width:100%;max-width:100%; }
+.reader.is-paged .reading-paper.mode-paged { height:100%;min-height:0;max-height:100%;overflow:hidden;touch-action:pan-y; }
+.is-paged .paragraph-note,.is-paged .untranslated button { display:none; }
+.is-paged .paragraph-actions { bottom:0; }
+.paged-title { position:absolute;top:10px;left:68px;right:130px;max-height:42px;overflow:hidden; }
+.paged-title strong { display:block;font-size:14px;white-space:nowrap;text-overflow:ellipsis;overflow:hidden; }
+.paged-title small { display:block;font-size:11px;color:#798872; }
+.pagination-loading { position:absolute;inset:0;display:grid;place-content:center;font-size:14px; }
+.pagination-pending .reading-paper.mode-paged { visibility:hidden; }
+.desktop-page-buttons { position:fixed;left:24px;right:24px;bottom:12px;display:flex;justify-content:space-between;pointer-events:none;z-index:20; }
+.desktop-page-buttons button { pointer-events:auto;padding:8px 15px;box-shadow:0 2px 10px #183c3018; }
+.is-paged .reader-page-status { max-width:calc(100vw - 170px);bottom:18px; }
+.viewport-measure { flex:none!important;max-height:none!important; }
+@media(max-width:600px){.reader.is-paged{padding:62px 14px 50px;}.desktop-page-buttons{display:none;}.is-paged .reader-page-status{max-width:calc(100vw - 24px);bottom:12px;}.paged-title{font-size:12px;left:62px;right:128px;}.reader-mobile-menu{left:9px;}}
+/* Dialogs stay above the reader controls and navigation drawer. */
+.overlay { z-index:150; }

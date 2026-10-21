@@ -1,8 +1,9 @@
+import {navigate,openMenu,showTools,hideTools,readyPage} from './helpers';
 import { test, expect } from "@playwright/test";
 
 test("review answer schedules the word and survives reload", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: /Sổ từ vựng/ }).click();
+  await navigate(page, /Sổ từ vựng/);
   await page.locator('input[type=file][accept=".csv"]').setInputFiles({
     name: "review.csv", mimeType: "text/csv",
     buffer: Buffer.from("term,meaning,language,note\nsách,book,vi,Một cuốn sách."),
@@ -16,7 +17,7 @@ test("review answer schedules the word and survives reload", async ({ page }) =>
   await panel.getByRole("button", { name: "Đã nhớ · 1 ngày" }).click();
   await expect(panel).toContainText("Đã ôn hết lượt này");
   await page.reload();
-  await page.getByRole("button", { name: /Sổ từ vựng/ }).click();
+  await navigate(page, /Sổ từ vựng/);
   await expect(panel).toContainText("0 từ đến lượt ôn");
 });
 
@@ -41,7 +42,7 @@ test("PIN blocks parent exit and page reload; completed practice persists", asyn
   await page.getByRole("textbox", { name: "Nội dung sách" }).fill("Một cuốn sách. Nhiều cách khám phá.");
   await page.getByRole("textbox", { name: "Tên sách", exact: true }).fill("Sách luyện đọc");
   await page.getByRole("button", { name: "Nhập & lưu sách" }).click();
-  await page.getByRole("button", { name: "Góc trẻ em", exact: true }).click();
+  await navigate(page, "Góc trẻ em");
   await page.getByLabel("Biệt danh").fill("An");
   await page.getByRole("button", { name: "Thêm hồ sơ" }).click();
   await page.getByRole("checkbox", { name: /Sách luyện đọc/ }).click();
@@ -65,7 +66,7 @@ test("PIN blocks parent exit and page reload; completed practice persists", asyn
   await page.waitForTimeout(5100);
   await page.getByLabel("PIN phụ huynh").fill("1234");
   await page.getByRole("button", { name: "Về quản lý hồ sơ" }).click();
-  await page.getByRole("button", { name: "Góc trẻ em", exact: true }).click();
+  await navigate(page, "Góc trẻ em");
   await page.getByRole("button", { name: "An · 6 tuổi" }).click();
   await expect(page.getByText(/Sách luyện đọc/).last()).toBeVisible();
   await expect(page.getByText(/2 câu ·/)).toBeVisible();

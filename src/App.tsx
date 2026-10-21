@@ -1,6 +1,9 @@
+import {useViewportPages} from "./useViewportPages";
+import {SyncPanel} from "./SyncPanel";
+import {flushEdits,syncEdits} from "./cloudSync";
 import { ReaderDock } from "./ReaderDock";
 import { WordPopover } from "./WordPopover";
-import { hitWord, type HitWord } from "./wordLookup";
+import {type SelectedText} from "./wordLookup";
 import { useReadingProgress } from "./useReadingProgress";
 import { GroupsPanel } from "./GroupsPanel";
 import { importGroupBook } from "./groups";
@@ -180,6 +183,7 @@ export default function App() {
   const [children, setChildren] = useState<Child[]>([]);
   const [cloud, setCloud] = useState(false);
   const [syncStatus, setSyncStatus] = useState("Đã đồng bộ");
+  const [pendingCount,setPendingCount]=useState(0);
   const [importGroup, setImportGroup] = useState<string | null>(null);
   const [groupsVersion,setGroupsVersion]=useState(0);
   const loadingSequence = useRef(0);
@@ -211,6 +215,11 @@ export default function App() {
   const [csvDuplicate, setCsvDuplicate] = useState<"merge" | "separate">(
     "merge",
   );
+  useEffect(()=>{
+    if(!mobileNav)return;
+    const prior=document.activeElement as HTMLElement|null,drawer=document.querySelector<HTMLElement>('.sidebar');drawer?.querySelector<HTMLElement>('button')?.focus();
+    const key=(e:KeyboardEvent)=>{if(e.key==='Escape'){setMobileNav(false);return;}if(e.key==='Tab'&&drawer){const elements=Array.from(drawer.querySelectorAll<HTMLElement>('button,input,select,a[href]')).filter(el=>el.offsetParent!==null&&!el.hasAttribute('disabled'));const first=elements[0],last=elements.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}};document.addEventListener('keydown',key);return()=>{document.removeEventListener('keydown',key);prior?.focus();};
+  },[mobileNav]);
   const active = books.find((b) => b.id === selected);
   const notify = (s: string) => setMessage(s);
   async function load(useCloud: boolean, quiet = false, resume = false) {
@@ -227,7 +236,7 @@ export default function App() {
         if(next)setSelected(next.id);
       } else setSelected(id=>id&&b.some(book=>book.id===id)?id:null);
     } catch(e){if(sequence===loadingSequence.current)notify(errorText(e));}
-    finally{if(sequence===loadingSequence.current&&!quiet)setReady(true);}
+    finally{if(sequence===loadingSequence.current)setReady(true);}
   }
   useEffect(()=>{
     if(!store.supabase){void load(false,false,true);return;}
@@ -240,11 +249,16 @@ export default function App() {
     return()=>data.subscription.unsubscribe();
   },[]);
   useEffect(()=>{
+    if(!cloud){setPendingCount(0);return;}
+    const refresh=()=>void syncEdits().then(edits=>setPendingCount(edits.length)).catch(()=>{});
+    refresh();window.addEventListener('lasach-sync',refresh);return()=>window.removeEventListener('lasach-sync',refresh);
+  },[cloud,sessionEmail]);
+  useEffect(()=>{
     if(!cloud)return;
     let running=false;
     const sync=async()=>{
       if(running||!navigator.onLine||document.visibilityState==="hidden")return;running=true;
-      try {await store.flushProgress().catch(()=>{});await load(true,true);setSyncStatus(await store.hasPendingProgress()?"Chờ đồng bộ":"Đã đồng bộ");}
+      try {await store.flushProgress().catch(()=>{});await flushEdits();await load(true,true);setSyncStatus(await store.hasPendingProgress()?"Chờ đồng bộ":"Đã đồng bộ");}
       catch {setSyncStatus("Đã giữ trên thiết bị · chờ đồng bộ");}
       finally{running=false;}
     };
@@ -506,13 +520,15 @@ export default function App() {
   const lastBook = books.find((b) => b.shelf === "reading");
   return (
     <div className="app">
-      <aside className={`sidebar ${mobileNav ? "open" : ""}`}>
+      {mobileNav&&<button className="drawer-backdrop" aria-label="Đóng nền menu" onClick={()=>setMobileNav(false)}/>}
+      <aside className={`sidebar ${mobileNav ? "open" : ""}`} aria-label="Menu ứng dụng" inert={!mobileNav}>
+        <button className="drawer-close" aria-label="Đóng menu" onClick={()=>setMobileNav(false)}><X size={20}/></button>
         <a
           className="brand"
           href="#"
           onClick={(e) => {
             e.preventDefault();
-            setSelected(null);
+            setSelected(null);setMobileNav(false);
             setPage("library");
           }}
         >
@@ -543,6 +559,7 @@ export default function App() {
             </button>
           ))}
         </nav>
+        <div id="reader-sidebar-content"/>
         <div className="sidebar-note">
           <Leaf size={25} />
           <h3>
@@ -584,7 +601,7 @@ export default function App() {
             <span className="connection">
               {online ? <span className="status-dot" /> : <WifiOff size={14} />}{" "}
               {cloud
-                ? syncStatus
+                ? pendingCount?`${pendingCount} thay đổi chờ đồng bộ`:syncStatus
                 : online
                   ? "Lưu trên thiết bị"
                   : "Ngoại tuyến"}
@@ -611,7 +628,7 @@ export default function App() {
             cap={cap}
             onUpdate={updateBook}
             onBack={() => setSelected(null)}
-            books={books} words={words} onOpenBook={openBook} onProgress={saveReadingPosition}
+            books={books} words={words} onOpenBook={openBook} onProgress={saveReadingPosition} onMenu={()=>setMobileNav(v=>!v)} onCloseMenu={()=>setMobileNav(false)}
             onGroups={() => {setSelected(null);setPage("groups");}}
             onWord={async (word) => {
               await saveWords(mergeWord(words, word));
@@ -1141,7 +1158,8 @@ export default function App() {
                       </form>
                     )}
                   </section>
-                  {sessionEmail && <section className="panel"><h2>Đồng bộ dữ liệu thiết bị</h2><p>Đưa sách, tệp gốc, từ vựng và hồ sơ đang lưu trên trình duyệt này vào tài khoản. Không xóa bản trên thiết bị; sách trùng trong tài khoản được dùng lại.</p><p role="status">{syncStatus}</p><div className="row"><button disabled={busy} className="primary" onClick={async()=>{setBusy(true);try{setCloud(true);const last=await store.migrateDeviceData((done,total)=>setSyncStatus(`Đang đưa sách lên cloud ${done}/${total}…`));await load(true);if(last)setSelected(last);setSyncStatus("Đã đồng bộ");notify("Đã đưa dữ liệu thiết bị lên cloud.");}catch(e){notify(errorText(e));}finally{setBusy(false);}}}>Đưa dữ liệu thiết bị lên cloud</button><button onClick={()=>{setSelected(null);setPage("groups");}}>Mở nhóm đọc</button></div></section>}
+                  {sessionEmail&&<SyncPanel onRefresh={()=>load(true,true)} notify={notify}/>}
+                  {sessionEmail && <section className="panel"><h2>Đồng bộ dữ liệu thiết bị</h2><p>Đưa sách, tệp gốc, từ vựng và hồ sơ đang lưu trên trình duyệt này vào tài khoản. Không xóa bản trên thiết bị; sách trùng trong tài khoản được dùng lại.</p><p role="status">{syncStatus}</p><div className="row"><button disabled={busy} className="primary" onClick={async()=>{setBusy(true);try{setCloud(true);const last=await store.migrateDeviceData((done,total)=>setSyncStatus(`Đang đưa sách lên cloud ${done}/${total}…`));await load(true);if(last)setSelected(last);const pending=await syncEdits();setSyncStatus(pending.length?`${pending.length} thay đổi chờ đồng bộ`:"Đã đồng bộ");notify(pending.length?`Đã chuyển sách và tệp gốc; ${pending.length} thay đổi cá nhân tiếp tục chờ đồng bộ. Xem mục Thay đổi chờ đồng bộ.`:"Đã đưa dữ liệu thiết bị lên cloud.");}catch(e){notify(errorText(e));}finally{setBusy(false);}}}>Đưa dữ liệu thiết bị lên cloud</button><button onClick={()=>{setSelected(null);setPage("groups");}}>Mở nhóm đọc</button></div></section>}
                   <section className="panel">
                     <h2>
                       <Languages size={21} /> Dịch tài liệu
@@ -1524,11 +1542,11 @@ function Reader({
   onBack,
   onWord,
   notify,
-  onDelete,books,words,onOpenBook,onProgress,onGroups,
+  onDelete,books,words,onOpenBook,onProgress,onGroups,onMenu,onCloseMenu,
 }: {
   book: Book;
   books: Book[]; words: Word[]; onOpenBook:(id:string)=>void;
-  onProgress:(position:Book['position'])=>Promise<void>;onGroups:()=>void;
+  onProgress:(position:Book['position'])=>Promise<void>;onGroups:()=>void;onMenu:()=>void;onCloseMenu:()=>void;
   cloud: boolean;
   cap: Capability | null;
   onUpdate: (b: Book) => Promise<void>;
@@ -1545,11 +1563,6 @@ function Reader({
     [font, setFont] = useState(20),
     [theme, setTheme] = useState("light"),
     [search, setSearch] = useState(""),
-    [selection, setSelection] = useState<{
-      text: string;
-      paragraph: Paragraph;
-    } | null>(null),
-    [meaning, setMeaning] = useState(""),
     [editing, setEditing] = useState<Paragraph | null>(null),
     [editedText, setEditedText] = useState(""),
     [note, setNote] = useState(""),
@@ -1565,24 +1578,42 @@ function Reader({
     [newAuthor, setNewAuthor] = useState(book.author);
   const [readMode, setReadMode] = useState<"paged" | "continuous">("paged");
   const [pageSize, setPageSize] = useState(2500);
+  const [fontFamily,setFontFamily]=useState('noto'),[lineHeight,setLineHeight]=useState(1.85),[paperWidth,setPaperWidth]=useState(1120);
+  const fonts:Record<string,string>={noto:'"Noto Sans", sans-serif',serif:'Georgia, "Times New Roman", "Noto Sans", serif',system:'system-ui, "Noto Sans", sans-serif'};
   const [readerReady, setReaderReady] = useState(false);
-  const pages = useMemo(() => paginateBook(book, pageSize), [book.chapters, pageSize]);
+  const fallbackPages = useMemo(() => paginateBook(book, pageSize), [book.chapters, pageSize]);
   const [pageIndex, setPageIndex] = useState(() => pageForPosition(paginateBook(book, 2500), book.position));
   const [rangeStart, setRangeStart] = useState(book.position.chapter);
   const [rangeEnd, setRangeEnd] = useState(Math.min(book.chapters.length, book.position.chapter + 2));
   const [activeParagraph, setActiveParagraph] = useState("");
-  const paper = useRef<HTMLDivElement | null>(null);
+  const paper = useRef<HTMLDivElement | null>(null),pageFrame=useRef<HTMLDivElement|null>(null);
+  const viewport=useViewportPages({book,frame:pageFrame,enabled:readMode==='paged'&&readerReady,layout,target,font,fontFamily:fonts[fontFamily],lineHeight,budget:pageSize,widthLimit:paperWidth});
+  const paginationBusy=readMode==='paged'&&(!readerReady||viewport.busy);
+  const pages=readMode==='paged'&&viewport.pages.length?viewport.pages:fallbackPages;
   const sentinel = useRef<HTMLDivElement | null>(null);
   const translationPanel = useRef<HTMLDetailsElement | null>(null);
-  const [wordHit,setWordHit]=useState<HitWord|null>(null);
-  const wordRef=useRef<HitWord|null>(null),wordPinned=useRef(false),hoverTimer=useRef<ReturnType<typeof setTimeout>|null>(null),hideTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+  const [wordHit,setWordHit]=useState<SelectedText|null>(null);
+  const selecting=useRef(false),selectionTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
   const touch=useRef<{x:number;y:number;at:number}|null>(null),skipClick=useRef(0);
   const [floatingTools,setFloatingTools]=useState(false),[toolsOffscreen,setToolsOffscreen]=useState(false),[controlsHeight,setControlsHeight]=useState(0);
   const controls=useRef<HTMLDivElement|null>(null),controlSlot=useRef<HTMLDivElement|null>(null);
-  function closeLookup(){setWordHit(null);wordRef.current=null;wordPinned.current=false;if(hoverTimer.current)clearTimeout(hoverTimer.current);if(hideTimer.current)clearTimeout(hideTimer.current);}
-  function delayCloseLookup(){if(wordPinned.current)return;if(hideTimer.current)clearTimeout(hideTimer.current);hideTimer.current=setTimeout(closeLookup,350);}
-  function showWord(word:HitWord,pinned=false){if(hideTimer.current)clearTimeout(hideTimer.current);wordPinned.current=pinned;wordRef.current=word;setWordHit(word);}
-  useEffect(()=>{document.body.classList.add("reading-mode");return()=>{document.body.classList.remove("reading-mode");if(hoverTimer.current)clearTimeout(hoverTimer.current);if(hideTimer.current)clearTimeout(hideTimer.current);};},[]);
+  function closeLookup(){setWordHit(null);window.getSelection()?.removeAllRanges();}
+  useEffect(()=>{document.body.classList.add('reading-mode');return()=>{document.body.classList.remove('reading-mode','reading-paged');if(selectionTimer.current)clearTimeout(selectionTimer.current);};},[]);
+  useEffect(()=>{document.body.classList.toggle('reading-paged',readMode==='paged');return()=>document.body.classList.remove('reading-paged');},[readMode]);
+  useEffect(()=>{
+    const capture=()=>{
+      if(selecting.current||document.querySelector('.overlay'))return;
+      const selection=window.getSelection();if(!selection||selection.isCollapsed||!selection.rangeCount)return;
+      const range=selection.getRangeAt(0),element=(node:Node)=>node.nodeType===Node.ELEMENT_NODE?node as HTMLElement:node.parentElement;
+      const start=element(range.startContainer)?.closest<HTMLElement>('[data-lookup-lang]'),end=element(range.endContainer)?.closest<HTMLElement>('[data-lookup-lang]');
+      if(!start||!end||!paper.current?.contains(start)||!paper.current.contains(end)||start!==end)return;
+      const term=selection.toString().trim();if(!term)return;if(term.length>1000){notify('Chọn tối đa 1.000 ký tự để dịch và lưu từ. Dịch trang hoặc chương nằm trong công cụ đọc.');return;}
+      const paragraph=start.closest<HTMLElement>('[data-paragraph-id]');if(!paragraph)return;
+      const rect=range.getBoundingClientRect();setWordHit({term,paragraphId:paragraph.dataset.paragraphId!,source:start.dataset.lookupLang as Lang,x:rect.left+rect.width/2,y:rect.top});
+    };
+    const update=()=>{if(selectionTimer.current)clearTimeout(selectionTimer.current);selectionTimer.current=setTimeout(capture,450);};
+    document.addEventListener('selectionchange',update);document.addEventListener('pointerup',update);return()=>{document.removeEventListener('selectionchange',update);document.removeEventListener('pointerup',update);if(selectionTimer.current)clearTimeout(selectionTimer.current);};
+  },[]);
   useEffect(()=>{
     if(!controlSlot.current)return;
     const observer=new IntersectionObserver(entries=>setToolsOffscreen(!entries[0].isIntersecting),{threshold:0});observer.observe(controlSlot.current);return()=>observer.disconnect();
@@ -1608,6 +1639,7 @@ function Reader({
         layout: "original",
         readMode: "paged",
         pageSize: 2500,
+        fontFamily:'noto',lineHeight:1.85,paperWidth:1120,
         target: book.language === "vi" ? "en" : "vi",
       })
       .then((s) => {
@@ -1616,6 +1648,7 @@ function Reader({
         setLayout(s.layout);
         setReadMode(s.readMode === "continuous" ? "continuous" : "paged");
         setPageSize(Math.max(500, Math.min(8000, Number(s.pageSize) || 2500)));
+        setFontFamily(fonts[s.fontFamily]?s.fontFamily:'noto');setLineHeight(Math.max(1.3,Math.min(2.5,Number(s.lineHeight)||1.85)));setPaperWidth(Math.max(560,Math.min(1400,Number(s.paperWidth)||1120)));
         setReaderReady(true);
         if (s.target !== book.language) setTarget(s.target as Lang);
       });
@@ -1626,13 +1659,13 @@ function Reader({
     };
   }, []);
   useEffect(() => {
-    if (readerReady) void store.setSetting("reader", { font, theme, layout, target, readMode, pageSize });
-  }, [readerReady, font, theme, layout, target, readMode, pageSize]);
+    if (readerReady) void store.setSetting("reader", { font, theme, layout, target, readMode, pageSize,fontFamily,lineHeight,paperWidth });
+  }, [readerReady, font, theme, layout, target, readMode, pageSize,fontFamily,lineHeight,paperWidth]);
   useEffect(() => {
     if (!readerReady) return;
     const index = pageForPosition(pages, latest.current.position);
     setPageIndex(index); setChapter(pages[index].chapter);
-  }, [pageSize, readerReady]);
+  }, [pages, readerReady]);
   useEffect(() => {
     if (readMode !== "continuous" || !sentinel.current || !("IntersectionObserver" in window)) return;
     const observer = new IntersectionObserver(entries => {
@@ -1640,23 +1673,28 @@ function Reader({
     }, { rootMargin: "600px" });
     observer.observe(sentinel.current); return () => observer.disconnect();
   }, [readMode, rangeEnd, book.chapters.length]);
-  const readingProgress=useReadingProgress({book,paper,ready:readerReady,onProgress:async position=>{latest.current={...latest.current,position};await onProgress(position);},onRemote:position=>{
+  const readingProgress=useReadingProgress({book,paper,ready:readerReady&&!paginationBusy,onProgress:async position=>{latest.current={...latest.current,position};await onProgress(position);},onRemote:position=>{
     const index=pageForPosition(pages,position);setPageIndex(index);setChapter(position.chapter);setRangeStart(position.chapter);setRangeEnd(Math.min(book.chapters.length,position.chapter+2));
   }});
   useEffect(()=>{
     const key=(e:KeyboardEvent)=>{
-      if(readMode!=="paged"||e.altKey||e.ctrlKey||e.metaKey||document.querySelector('.overlay')||e.target instanceof HTMLElement&&e.target.closest('input,textarea,select,[contenteditable=true],.word-popover,.reader-flyout'))return;
+      if(readMode!=="paged"||paginationBusy||e.shiftKey||e.altKey||e.ctrlKey||e.metaKey||document.querySelector('.overlay,.sidebar.open')||e.target instanceof HTMLElement&&e.target.closest('input,textarea,select,[contenteditable=true],.word-popover,.reader-flyout'))return;
       if(e.key==="ArrowRight"){e.preventDefault();void goPage(pageIndex+1);}if(e.key==="ArrowLeft"){e.preventDefault();void goPage(pageIndex-1);}
       if(e.key==="Escape"){closeLookup();setFloatingTools(false);}
     };window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key);
-  },[readMode,pageIndex,translating,pages]);
+  },[readMode,pageIndex,translating,pages,paginationBusy]);
   async function goPage(index: number) {
-    if (index < 0 || index >= pages.length || translating) return;
+    if (index < 0 || index >= pages.length || translating || paginationBusy) return;
     const first = pages[index].fragments[0];
     setPageIndex(index); setChapter(first.chapter); setActiveParagraph("");
     closeLookup();
     void readingProgress.record({ chapter:first.chapter,paragraph:first.paragraph,offset:first.start }).catch(e=>notify(errorText(e)));
-    paper.current?.scrollIntoView({ block: "start", behavior: "instant" });
+    if(readMode!=="paged")paper.current?.scrollIntoView({ block: "start", behavior: "instant" });
+  }
+  function jumpTo(position:Book['position']) {
+    closeLookup();setSearch('');setPageIndex(pageForPosition(pages,position));setChapter(position.chapter);setRangeStart(position.chapter);setRangeEnd(Math.min(book.chapters.length,position.chapter+2));
+    setActiveParagraph(book.chapters[position.chapter].paragraphs[position.paragraph].id);
+    void readingProgress.record(position).catch(e=>notify(errorText(e)));setTimeout(()=>readingProgress.reveal(position),60);
   }
   async function goChapter(ci: number) {
     if (readMode === "paged") { await goPage(pages.findIndex(p => p.chapter === ci)); return; }
@@ -1790,24 +1828,19 @@ function Reader({
     setSpeaking(true);
     speechSynthesis.speak(u);
   }
-  function capture(p: Paragraph) {
-    const text = window.getSelection()?.toString().trim();
-    if (text) {
-      setSelection({ text: text.slice(0, 1000), paragraph: p });
-      setMeaning("");
-    }
-  }
   return (
-    <div className={`reader theme-${theme}`}>
+    <div className={`reader theme-${theme} ${readMode==='paged'?'is-paged':''} ${paginationBusy?'pagination-pending':''}`}>
+      <button className="reader-mobile-menu" aria-label="Mở menu" onClick={()=>{closeLookup();onMenu();}}><Menu/></button>
+      {readMode==='paged'&&<div className="paged-title"><strong>{book.title}</strong><small>{book.chapters[chapter].title}</small></div>}
       {sourcePdf && <Modal title={`PDF gốc · trang ${book.chapters[chapter].sourcePage}`} onClose={() => setSourcePdf(null)}>
         <Suspense fallback={<p>Đang mở PDF…</p>}><PdfPageView file={sourcePdf} page={book.chapters[chapter].sourcePage!} /></Suspense>
       </Modal>}
-      <ReaderDock book={book} books={books} words={words} chapter={chapter} onChapter={i=>void goChapter(i)} onBook={onOpenBook} onGroups={onGroups} />
-      {wordHit&&<WordPopover word={wordHit} target={wordHit.source===book.language?target:book.language} onClose={closeLookup} onEnter={()=>{if(hideTimer.current)clearTimeout(hideTimer.current);}} onLeave={delayCloseLookup} onSave={async meaning=>{
+      <ReaderDock book={book} books={books} words={words} chapter={chapter} onChapter={i=>void goChapter(i)} onBook={onOpenBook} onGroups={onGroups} onPosition={jumpTo} onClose={onCloseMenu} />
+      {wordHit&&<WordPopover key={`${wordHit.source}:${wordHit.term}`} word={wordHit} target={wordHit.source===book.language?target:book.language} onClose={closeLookup} onSave={async(term,meaning)=>{
         const paragraph=book.chapters.flatMap(c=>c.paragraphs).find(p=>p.id===wordHit.paragraphId)!;
-        await onWord({id:id(),term:wordHit.term,meaning,language:wordHit.source,status:"new",createdAt:new Date().toISOString(),contexts:[{bookId:book.id,bookTitle:book.title,paragraphId:paragraph.id,sentence:wordHit.source===book.language?paragraph.text:paragraph.translations[wordHit.source]?.text||paragraph.text}]});
-      }} />}
-      {(toolsOffscreen||floatingTools)&&<button className="show-reader-tools" aria-expanded={floatingTools} onClick={()=>setFloatingTools(v=>!v)}>{floatingTools?"Ẩn công cụ":"Hiện công cụ"}</button>}
+        await onWord({id:id(),term,meaning,language:wordHit.source,status:'new',createdAt:new Date().toISOString(),contexts:[{bookId:book.id,bookTitle:book.title,paragraphId:paragraph.id,sentence:wordHit.source===book.language?paragraph.text:paragraph.translations[wordHit.source]?.text||paragraph.text}]});
+      }}/>}
+      {(readMode==='paged'||toolsOffscreen||floatingTools)&&<button className="show-reader-tools" aria-expanded={floatingTools} onClick={()=>setFloatingTools(v=>!v)}>{floatingTools?"Ẩn công cụ":"Hiện công cụ"}</button>}
       <div ref={controlSlot} className="reader-control-slot" style={floatingTools?{height:controlsHeight}:undefined}>
       <div ref={controls} className={`reader-controls ${floatingTools?"tools-floating":""}`}>
       <div className="reader-header">
@@ -1892,6 +1925,9 @@ function Reader({
             onChange={(e) => setFont(Number(e.target.value))}
           />
         </label>
+        <label>Phông chữ<select aria-label="Phông chữ đọc" value={fontFamily} onChange={e=>setFontFamily(e.target.value)}><option value="noto">Noto Sans</option><option value="serif">Chữ có chân</option><option value="system">Phông hệ thống</option></select></label>
+        <label>Khoảng dòng<input aria-label="Khoảng dòng" type="range" min={1.3} max={2.5} step={0.05} value={lineHeight} onChange={e=>setLineHeight(Number(e.target.value))}/></label>
+        <label>Chiều rộng trang<input aria-label="Chiều rộng trang" type="range" min={560} max={1400} step={20} value={paperWidth} onChange={e=>setPaperWidth(Number(e.target.value))}/></label>
         <label>
           Nền đọc
           <select
@@ -2022,26 +2058,16 @@ function Reader({
           />
         </label>
       </div>
-      <div ref={paper} className={`reading-paper paragraphs layout-${layout} mode-${readMode}`} style={{ fontSize: font }} tabIndex={0} aria-label="Trang sách · bấm lề trái hoặc phải để chuyển trang" onPointerDown={e=>{if(e.pointerType==="touch")touch.current={x:e.clientX,y:e.clientY,at:Date.now()};}}
-        onPointerCancel={()=>{touch.current=null;}}
-        onPointerUp={e=>{if(e.pointerType!=="touch"||!touch.current)return;const start=touch.current;touch.current=null;const dx=e.clientX-start.x,dy=e.clientY-start.y;
-          if(readMode==="paged"&&Math.abs(dx)>55&&Math.abs(dx)>Math.abs(dy)*1.4&&Date.now()-start.at<1500){skipClick.current=Date.now()+500;e.preventDefault();void goPage(pageIndex+(dx<0?1:-1));}
+      <div ref={pageFrame} className="page-frame">
+      {paginationBusy&&readMode==='paged'&&<p className="pagination-loading" role="status">Đang chia trang theo màn hình…</p>}
+      <div ref={paper} className={`reading-paper paragraphs layout-${layout} mode-${readMode}`} style={{ fontSize: font,maxWidth:paperWidth,"--reader-font":fonts[fontFamily],"--reader-leading":lineHeight } as React.CSSProperties} tabIndex={0} aria-label="Trang sách" aria-busy={paginationBusy}
+        onPointerDown={e=>{selecting.current=true;if(e.pointerType==='touch'){touch.current={x:e.clientX,y:e.clientY,at:Date.now()};skipClick.current=Date.now()+500;}}}
+        onPointerCancel={()=>{selecting.current=false;touch.current=null;}}
+        onPointerUp={e=>{selecting.current=false;if(e.pointerType!=='touch'||!touch.current)return;const start=touch.current;touch.current=null;const dx=e.clientX-start.x,dy=e.clientY-start.y;
+          if(readMode==='paged'&&Math.abs(dx)>55&&Math.abs(dx)>Math.abs(dy)*1.4&&Date.now()-start.at<1500&&window.getSelection()?.isCollapsed){skipClick.current=Date.now()+500;e.preventDefault();void goPage(pageIndex+(dx<0?1:-1));}
         }}
-        onPointerMove={e=>{
-          if(e.pointerType!=="mouse"||wordPinned.current||!getSelection()?.isCollapsed)return;
-          const word=hitWord(e.clientX,e.clientY,e.currentTarget);
-          if(!word){if(hoverTimer.current)clearTimeout(hoverTimer.current);delayCloseLookup();return;}
-          if(hideTimer.current)clearTimeout(hideTimer.current);
-          if(wordRef.current?.term===word.term&&wordRef.current.paragraphId===word.paragraphId)return;
-          if(hoverTimer.current)clearTimeout(hoverTimer.current);
-          hoverTimer.current=setTimeout(()=>showWord(word),500);
-        }}
-        onPointerLeave={delayCloseLookup}
-        onClick={e=>{
-          if(Date.now()<skipClick.current||!getSelection()?.isCollapsed||(e.target as HTMLElement).closest('button,a,input,textarea,select,.paragraph-actions'))return;
-          const word=hitWord(e.clientX,e.clientY,e.currentTarget);if(word){showWord(word,true);return;}
-          closeLookup();if(readMode!=="paged")return;
-          const box=e.currentTarget.getBoundingClientRect();void goPage(pageIndex+(e.clientX<box.left+box.width/2?-1:1));
+        onClick={e=>{if(Date.now()<skipClick.current||!getSelection()?.isCollapsed||(e.target as HTMLElement).closest('button,a,input,textarea,select,.paragraph-actions'))return;
+          if(readMode!=='paged')return;const box=e.currentTarget.getBoundingClientRect();void goPage(pageIndex+(e.clientX<box.left+box.width/2?-1:1));
         }}>
         {readMode === "continuous" && rangeStart > 0 && <button onClick={() => setRangeStart(start => Math.max(0, start - 2))}>Nạp chương trước</button>}
         {fragments.map((fragment, fi) => {
@@ -2069,8 +2095,6 @@ function Reader({
               {readMode === "continuous" && (fi === 0 || fragments[fi - 1].chapter !== ci) && <h3 className="continuous-chapter-title">{book.chapters[ci].title}</h3>}
               <div
                 className="paragraph-text"
-                onMouseUp={() => capture(p)}
-                onTouchEnd={() => capture(p)}
               >
                 {layout !== "translation" && (
                   <p lang={book.language} data-reading-source data-lookup-lang={book.language} style={fragment.start ? { textIndent: 0 } : undefined}>{displayText}</p>
@@ -2150,10 +2174,7 @@ function Reader({
                 </button>
                 <button
                   aria-label={`Lưu từ từ đoạn ${i + 1}`}
-                  onClick={() => {
-                    setSelection({ text: p.text, paragraph: p });
-                    setMeaning("");
-                  }}
+                  onClick={e=>{const r=e.currentTarget.getBoundingClientRect();setWordHit({term:displayText.slice(0,1000),source:book.language,paragraphId:p.id,x:r.left,y:r.top});}}
                 >
                   <GraduationCap size={15} />
                 </button>
@@ -2165,94 +2186,10 @@ function Reader({
           );
         })}
       </div>
+      </div>
       {readMode === "continuous" && <div ref={sentinel} className="reading-sentinel" role="status">{rangeEnd < book.chapters.length ? "Đang nối phần tiếp theo…" : "Đã đến cuối sách."}</div>}
-      <div className="reader-page-status" aria-live="polite">{readMode==="paged"?`Trang ${pageIndex+1}/${pages.length} · bấm lề trái/phải hoặc vuốt để đổi trang`:"Đọc liên tục · tự lưu vị trí"}</div>
-      {selection && (
-        <Modal
-          title="Từ & cụm từ trong ngữ cảnh"
-          onClose={() => setSelection(null)}
-        >
-          <label>
-            Từ hoặc cụm muốn lưu
-            <textarea
-              aria-label="Từ muốn lưu"
-              value={selection.text}
-              onChange={(e) =>
-                setSelection({ ...selection, text: e.target.value })
-              }
-            />
-          </label>
-          <label>
-            Nghĩa / ghi chú
-            <textarea
-              aria-label="Nghĩa của từ"
-              value={meaning}
-              onChange={(e) => setMeaning(e.target.value)}
-            />
-          </label>
-          <blockquote>{selection.paragraph.text}</blockquote>
-          <div className="row">
-            <button
-              className="primary"
-              disabled={!selection.text.trim()}
-              onClick={async () => {
-                try {
-                  await onWord({
-                    id: id(),
-                    term: selection.text.trim(),
-                    meaning,
-                    language: book.language,
-                    contexts: [
-                      {
-                        bookId: book.id,
-                        bookTitle: book.title,
-                        paragraphId: selection.paragraph.id,
-                        sentence: selection.paragraph.text,
-                      },
-                    ],
-                    status: "new",
-                    createdAt: new Date().toISOString(),
-                  });
-                  setSelection(null);
-                } catch (e) {
-                  notify(errorText(e));
-                }
-              }}
-            >
-              <Plus size={16} /> Lưu từ
-            </button>
-            <button onClick={() => speak(selection.text, book.language)}>
-              <Volume2 size={16} /> Nghe
-            </button>
-            {book.language === "zh" && (
-              <button
-                onClick={async () => {
-                  try {
-                    await navigator.clipboard.writeText(selection.text);
-                    window.open(
-                      "https://hanzii.net",
-                      "_blank",
-                      "noopener,noreferrer",
-                    );
-                    notify(
-                      "Đã sao chép. Dán từ vào Hanzii để tra; chưa hỗ trợ truyền từ tự động.",
-                    );
-                  } catch {
-                    notify(
-                      "Không sao chép được. Hãy sao chép từ thủ công và mở hanzii.net.",
-                    );
-                  }
-                }}
-              >
-                <ExternalLink size={16} /> Sao chép & mở Hanzii
-              </button>
-            )}
-          </div>
-          <p className="muted">
-            Giai đoạn 1 chưa có từ điển tự động hoặc đánh giá phát âm.
-          </p>
-        </Modal>
-      )}
+      {readMode==='paged'&&<nav className="desktop-page-buttons" aria-label="Lật trang"><button aria-label="Trang trước" disabled={paginationBusy||pageIndex===0} onClick={()=>void goPage(pageIndex-1)}><ChevronLeft/></button><button aria-label="Trang sau" disabled={paginationBusy||pageIndex>=pages.length-1} onClick={()=>void goPage(pageIndex+1)}><ChevronRight/></button></nav>}
+      <div className="reader-page-status" aria-live="polite">{readMode==='paged'?`Trang ${pageIndex+1}/${pages.length} · vuốt hoặc dùng phím trái/phải`:'Đọc liên tục · tự lưu vị trí'}</div>
       {editing && (
         <Modal
           title="Bản dịch & ghi chú"
