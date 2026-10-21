@@ -937,6 +937,13 @@ small {
 .dropzone strong {
   font-size: 13px;
 }
+.dropzone.dragging { background:#dfeeda;border:2px dashed #28624e;outline:3px solid #28624e22; }
+.dropzone:focus-within { outline:2px solid #28624e;outline-offset:3px; }
+.dropzone.disabled { opacity:.65;cursor:wait; }
+.file-drop.compact .dropzone { padding:14px;margin:0 0 22px; }
+.file-drop .dropzone { position:relative; }
+.file-drop .dropzone .file-picker-action { padding:8px 14px;border:1px solid #b9cbb0;border-radius:7px;font-size:12px;color:#28624e;background:#fff; }
+.file-drop .dropzone input { position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);border:0; }
 .dropzone span {
   font-size: 10px;
 }

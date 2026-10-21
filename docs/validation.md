@@ -142,3 +142,15 @@ Hosted live bằng hai tài khoản tạm và ba browser độc lập: tạo sá
 Kiểm tra cuối: **65/65 Vitest**, toàn bộ **43/43 Chromium E2E**, production build và `git diff --check` đạt. Sau đó chỉnh hướng hàng checkbox của cloud picker cho mobile; cả 2 kiểm thử picker được chạy lại. Không đổi schema/cấu hình Supabase, không thêm provider trả phí hay tài nguyên cloud mới. Những mục chưa làm (từ điển/phát âm, metadata/bìa, nghe đọc nâng cao, queue nền/AI, tích hợp nguồn) vẫn giữ rõ trong backlog.
 
 Đã triển khai **15:27 ngày 21/10/2026 (+07:00)**, Worker `readbook`, version **377aad4b-113c-48cf-8ff0-d7f1d7b21595**. API quản lý Cloudflare xác nhận **100% traffic**, provider MyMemory enabled và local fixture disabled. Public `/api/health` từ Codex vẫn HTTP 403; không báo đã nghiệm thu browser trực tiếp trên URL production.
+
+
+## Kéo thả tệp sách — 21/10/2026
+
+- Vùng kéo thả/chọn tệp ở thư viện và cửa sổ nhập sách; cửa sổ thêm sách vào nhóm dùng cùng thành phần. Chỉ nhận một tệp mỗi lần với các đuôi PDF/EPUB/TXT/DOCX/HTML/HTM, không tự lưu ngay. Giữ giới hạn 50 MB, SHA-256/chống trùng/tệp gốc và đường đi PDF/OCR hiện có. File browser tiếp tục dùng trên mobile/bàn phím. Vùng sáng khi kéo qua, không nhấp nháy khi đi qua phần tử con; không nhận thay tệp trong lúc xử lý.
+- Thả nhầm nhiều tệp/thư mục/đuôi không hỗ trợ không làm mất nội dung hoặc tên tự sửa. Window guard ngăn browser mở tệp thả ngoài vùng trong khi vùng nhận đang mount, không chặn drag văn bản. Đóng nhập sách xóa tệp nhận từ thư viện; thay PDF xóa preview và liên kết checkpoint đang dùng, không xóa checkpoint của PDF cũ khi lưu một tệp khác.
+- Browser DataTransfer thực trong Chromium: TXT có dấu Việt/Trung/emoji mở form review, sau nhập tải tệp gốc byte-for-byte; nested dragleave giữ highlight; invalid/multiple/directory fixture giữ draft; drop ngoài vùng bị preventDefault; PDF hai trang đi qua trích xuất toàn tệp và thay file phải xử lý lại; 50 MB + 1 byte bị chặn, mobile file picker hoạt động và không tràn ngang. Directory isDirectory được fixture qua API entry; chưa nghiệm thu kéo thư mục thật trên mọi OS.
+- Hosted smoke: tạo hai tài khoản tạm không gửi email; browser chạy artifact production localhost, kéo TXT bằng DataTransfer vào **Thêm sách vào nhóm**, nhập và upload qua Supabase thật; thành viên đọc được, progress nhiều browser, PWA offline và CAS notes vẫn đạt. Request Supabase qua proxy/TLS của phiên. Đã dọn tài khoản/tệp/dữ liệu thử; chưa phải nghiệm thu browser qua URL Worker public.
+
+Kiểm tra cuối: production build đạt; **65/65 Vitest**, toàn bộ **47/47 Chromium E2E** đạt. Sau tinh chỉnh nút chọn tệp tiếng Việt, chạy lại cả bốn file-drop case; bao gồm focus input + Space mở file chooser và chọn tệp trong viewport mobile. `git diff --check` đạt, dist không chứa cấu hình cloud fixture. Không thay schema hoặc cấu hình Supabase, không tăng giới hạn tệp hoặc dùng dịch vụ xử lý mới.
+
+Triển khai **15:43 ngày 21/10/2026 (+07:00)**, Worker `readbook`, version **0f496650-c365-41ce-976c-5cb161df6aba**; API Cloudflare xác nhận **100% traffic**. Public `/api/health` từ Codex vẫn HTTP 403; không báo đã nghiệm thu browser trên URL công khai.

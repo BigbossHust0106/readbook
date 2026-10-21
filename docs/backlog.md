@@ -5,7 +5,7 @@
 ## Giai đoạn 1 — nhập, thư viện, trình đọc, dịch, vị trí và từ vựng
 
 - ✅ Việt/Trung/Anh, giao diện Việt, ngôn ngữ gốc không bị chuyển đổi.
-- ✅ TXT, EPUB, DOCX, HTML, văn bản dán; SHA-256, giới hạn, tệp gốc riêng; chương/đoạn ổn định.
+- ✅ TXT, EPUB, DOCX, HTML, văn bản dán; SHA-256, giới hạn, tệp gốc riêng; chương/đoạn ổn định. ✅ Kéo thả từng tệp từ máy vào vùng thư viện hoặc cửa sổ thêm sách (cả trong nhóm), có kiểm tra thông tin trước lưu; giới hạn 50 MB/PDF-OCR giữ nguyên.
 - ✅ Hai cột trong cùng hàng (cuộn chung nên căn theo đoạn), xen kẽ, nguyên văn, bản dịch; chỉnh cỡ chữ/nền, mục lục, tìm chương, vị trí thủ công, ghi chú, tô sáng.
 - ✅ Bản dịch thủ công, khóa, lịch sử; chọn từ/cụm có ngữ cảnh, trạng thái học; CSV có preview/mapping và báo cáo trùng.
 - ✅ Kệ đang đọc/đọc sau/yêu thích/hoàn thành, tìm metadata/ngôn ngữ, sao lưu gồm originals.

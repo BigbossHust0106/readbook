@@ -1,4 +1,5 @@
 import {Modal} from "./Modal";
+import {FileDropZone} from "./FileDropZone";
 import {TranslationImport} from "./TranslationImport";
 import {applyImportedTranslations} from "./translationImport";
 import {putBookmark,removeBookmark} from "./bookmarks";
@@ -143,6 +144,7 @@ export default function App() {
   const [filter, setFilter] = useState("all");
   const [languageFilter, setLanguageFilter] = useState("all");
   const [importOpen, setImportOpen] = useState(false);
+  const [droppedFile,setDroppedFile]=useState<File|null>(null),[dropError,setDropError]=useState('');
   const [selected, setSelected] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -604,6 +606,11 @@ export default function App() {
                     <Plus size={18} /> Thêm sách
                   </button>
                 </div>
+                <FileDropZone compact label="Kéo thả sách vào thư viện hoặc bấm chọn tệp" inputLabel="Chọn tệp từ thiết bị" onError={setDropError} onFile={file=>{
+                  if(file.size>MAX_FILE){setDropError('Tệp tối đa 50 MB.');return;}
+                  setDropError('');setImportGroup(null);setDroppedFile(file);setImportOpen(true);
+                }}/>
+                {dropError&&<p className="error" role="alert">{dropError}</p>}
                 <section className="hero">
                   <div className="hero-copy">
                     <span className="pill">
@@ -1198,10 +1205,11 @@ export default function App() {
       )}
       {importOpen && (
         <ImportModal
-          onClose={() => {setImportOpen(false);setImportGroup(null);}}
+          initialFile={droppedFile}
+          onClose={() => {setImportOpen(false);setImportGroup(null);setDroppedFile(null);}}
           onImport={async (book, file) => {
             if(importGroup) {
-              await importGroupBook(importGroup,book,file);await load(true,true);setGroupsVersion(v=>v+1);setImportOpen(false);setImportGroup(null);notify("Đã thêm sách vào nhóm; tệp trùng được dùng lại.");return;
+              await importGroupBook(importGroup,book,file);await load(true,true);setGroupsVersion(v=>v+1);setImportOpen(false);setImportGroup(null);setDroppedFile(null);notify("Đã thêm sách vào nhóm; tệp trùng được dùng lại.");return;
             }
             if (
               books.some(
@@ -1219,6 +1227,7 @@ export default function App() {
             }
             setBooks((prev) => [book, ...prev]);
             setImportOpen(false);
+            setDroppedFile(null);
             notify("Đã nhập sách và lưu riêng tệp gốc.");
           }}
         />
@@ -1303,13 +1312,15 @@ export default function App() {
 function ImportModal({
   onClose,
   onImport,
+  initialFile=null,
 }: {
+  initialFile?:File|null;
   onClose: () => void;
   onImport: (b: Book, file: Blob) => Promise<void>;
 }) {
-  const [file, setFile] = useState<File | null>(null),
+  const [file, setFile] = useState<File | null>(initialFile),
     [text, setText] = useState(""),
-    [title, setTitle] = useState(""),
+    [title, setTitle] = useState(initialFile?.name.replace(/\.[^.]+$/, "")||""),
     [author, setAuthor] = useState(""),
     [language, setLanguage] = useState<Lang>("vi"),
     [genre, setGenre] = useState(""),
@@ -1325,7 +1336,7 @@ function ImportModal({
   const [extracting, setExtracting] = useState(false);
   const controller = useRef<AbortController | null>(null);
   useEffect(() => () => controller.current?.abort(), []);
-  function resetPdf() { setPdfPages(null); setPdfIndex(0); setProgress(null); setError(""); }
+  function resetPdf() { setPdfPages(null); setPdfDraftId(''); setPdfIndex(0); setProgress(null); setError(""); }
   async function processPdf() {
     if (!file || busy) return;
     if (file.size > MAX_FILE) { setError("Tệp tối đa 50 MB."); return; }
@@ -1374,24 +1385,11 @@ function ImportModal({
         Tệp gốc được giữ riêng. PDF/OCR xử lý trên thiết bị; khi dùng chế độ cloud, tệp gốc và văn bản sẽ được lưu vào tài khoản của bạn.
       </p>
       <SourceImport onBusy={setBusy} disabled={busy} onFile={(next, sourceTitle, sourceAuthor) => { resetPdf(); setFirstPage(1); setLastPage(""); setFile(next); setTitle(sourceTitle || next.name.replace(/\.[^.]+$/, "")); if (sourceAuthor) setAuthor(sourceAuthor); }} />
-      <label className="dropzone">
-        <Upload size={30} />
-        <strong>{file ? file.name : "Chọn tệp sách của bạn"}</strong>
-        <span>PDF, EPUB, TXT UTF-8, DOCX, HTML · Tối đa 50 MB</span>
-        <input
-          type="file"
-          aria-label="Tệp sách"
-          accept=".pdf,.epub,.txt,.docx,.html,.htm"
-          disabled={busy}
-          onChange={(e) => {
-            const f = e.target.files?.[0] || null;
-            resetPdf(); setFirstPage(1); setLastPage("");
-            setFile(f);
-            if (f && f.size > MAX_FILE) setError("Tệp tối đa 50 MB.");
-            if (f && !title) setTitle(f.name.replace(/\.[^.]+$/, ""));
-          }}
-        />
-      </label>
+      <FileDropZone file={file} disabled={busy} onError={setError} onFile={f=>{
+        resetPdf();setFirstPage(1);setLastPage('');setFile(f);
+        if(f.size>MAX_FILE)setError('Tệp tối đa 50 MB.');
+        if(!title||title===file?.name.replace(/\.[^.]+$/,''))setTitle(f.name.replace(/\.[^.]+$/,''));
+      }}/>
       {file ? (
         <button className="text-button" disabled={busy} onClick={() => { setFile(null); resetPdf(); }}>
           Dùng văn bản dán thay thế

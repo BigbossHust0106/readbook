@@ -146,3 +146,10 @@ Mặc định giữ bản dịch đã có và luôn giữ đoạn khóa. Có th�
 
 
 Trong **Nhóm đọc & cloud**, chọn nhóm → **Chọn sách từ cloud của tôi** → tìm và đánh dấu các sách → **Thêm sách đã chọn vào nhóm**. Dùng sách/tệp đã có trên cloud, không cần tải lên lần nữa. Sách đã có cùng nội dung/ngôn ngữ trong nhóm được nhận diện. Chỉ sách do tài khoản của bạn sở hữu được chia sẻ từ danh sách này; bản riêng vẫn còn trong thư viện. Khi thêm nhiều sách mà một sách gặp lỗi, các sách thành công vẫn được giữ, các lựa chọn còn lại có thể thử lại.
+
+
+## Kéo thả tệp sách
+
+Trên máy tính, kéo **một tệp** PDF/EPUB/TXT/DOCX/HTML vào vùng **Kéo thả sách vào thư viện** hoặc vùng chọn tệp trong cửa sổ **Thêm sách**. Vùng nhận sáng lên khi kéo qua. Kiểm tra tên sách, tác giả và ngôn ngữ rồi **Nhập & lưu sách**. PDF vẫn cần **Đọc PDF / OCR** và kiểm tra văn bản trước khi lưu. Tối đa 50 MB/tệp.
+
+Trong nhóm chọn **Thêm sách vào nhóm**, rồi kéo tệp vào cửa sổ nhập; sách được thêm vào nhóm đang chọn. Điện thoại vẫn dùng nút chọn tệp. Thả nhầm nhiều tệp, thư mục hoặc định dạng không hỗ trợ sẽ báo lỗi và giữ nội dung đang nhập. Kéo thả chưa hỗ trợ nhập hàng loạt.
