@@ -273,7 +273,7 @@ export async function migrateDeviceData(report:(done:number,total:number)=>void)
     target=target || {...source,id:crypto.randomUUID()};
     const book:Book={...target,shelf:source.shelf,approvedChildren:source.approvedChildren.map(id=>childMap[id]).filter(Boolean),chapters:target.chapters.map((c,ci)=>({...c,paragraphs:c.paragraphs.map((p,pi)=>{
       const from=source.chapters[ci]?.paragraphs[pi]; if(!from||from.text!==p.text)return p;
-      paragraphIds[from.id]=p.id;return {...p,note:from.note,highlight:from.highlight,translations:from.translations};
+      paragraphIds[from.id]=p.id;return {...p,note:from.note,highlight:from.highlight,translations:from.translations,bookmarks:from.bookmarks};
     })}))};
     await saveBook(book,true);
     if(fresh) {

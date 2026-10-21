@@ -134,3 +134,15 @@ Thêm sách, sửa nội dung gốc và thao tác tệp gốc cloud vẫn cần 
 
 
 Trong bảng **Dịch và lưu từ**, nếu nguồn dịch gián đoạn hãy bấm **Thử dịch lại**. Bạn có thể sửa cụm từ rồi bấm **Dịch**. Nghĩa tự nhập được giữ khi kết quả đến; bấm **Dùng bản dịch** nếu muốn thay bằng kết quả mới. **Google Dịch** mở riêng khi cần; nguồn MyMemory miễn phí vẫn có hạn mức.
+
+
+## Dấu trang và nhập bản dịch có sẵn
+
+Trong trình đọc mở **menu ba sọc → Dấu trang**, đặt tên (có thể bỏ trống) rồi **Lưu trang đang đọc**. Có thể lưu nhiều vị trí trong cùng đoạn; vị trí đọc tiếp vẫn tự lưu độc lập. Bấm dấu trang để trở lại, dùng **Đổi tên / Xóa dấu trang** để quản lý; nhập ở ô tìm trong bảng để lọc tên hoặc trích đoạn. Nút **Thêm dấu trang đoạn…** cạnh đoạn lưu ngay đầu phần đang hiển thị.
+
+Mở **Hiện công cụ → Dịch & nghe → Nhập bản dịch có sẵn**, chọn ngôn ngữ đích và chương/toàn sách. Dán nội dung, cách đoạn bằng dòng trống, hoặc chọn TXT/EPUB/DOCX/HTML tối đa 50 MB. Bấm **Đối chiếu bản dịch**: ghép ban đầu theo thứ tự, cần kiểm tra khi hai bản chia đoạn khác nhau. Chọn số **Đoạn nguyên văn**, sửa ô **Bản dịch đang ghép**; trong mục điều chỉnh, chọn **Đoạn trong bản dịch** rồi gán hoặc ghép thêm. Các đoạn chưa ghép phải được xử lý hoặc xác nhận bỏ qua. Kiểm tra số đoạn sẽ lưu, xác nhận đối chiếu rồi **Lưu bản dịch đã ghép**.
+
+Mặc định giữ bản dịch đã có và luôn giữ đoạn khóa. Có thể chọn thay các bản chưa khóa; lịch sử cũ được giữ tối đa 20 bản/đoạn. Bản nhập mới mặc định được khóa, có nhãn **Bản dịch nhập sẵn**. Không gọi dịch máy hoặc thay tệp nguyên văn. Ở chế độ cloud, dấu trang và bản dịch này thuộc tài khoản của bạn, đi cùng hàng đợi đồng bộ ngoại tuyến; các thành viên nhóm dùng chung sách gốc nhưng không thấy dữ liệu riêng của nhau.
+
+
+Trong **Nhóm đọc & cloud**, chọn nhóm → **Chọn sách từ cloud của tôi** → tìm và đánh dấu các sách → **Thêm sách đã chọn vào nhóm**. Dùng sách/tệp đã có trên cloud, không cần tải lên lần nữa. Sách đã có cùng nội dung/ngôn ngữ trong nhóm được nhận diện. Chỉ sách do tài khoản của bạn sở hữu được chia sẻ từ danh sách này; bản riêng vẫn còn trong thư viện. Khi thêm nhiều sách mà một sách gặp lỗi, các sách thành công vẫn được giữ, các lựa chọn còn lại có thể thử lại.

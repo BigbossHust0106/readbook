@@ -34,6 +34,7 @@ it('joins only with valid invite, shares one book record and denies outsiders or
  await as(b);expect((await db.query('select * from public.books')).rows).toHaveLength(0);
  await expect(call('join_reading_group',['00000000-0000-4000-8000-000000000000','Bình'])).rejects.toThrow();
  await call('join_reading_group',[invite,'Bình']);expect((await db.query('select * from public.books')).rows).toHaveLength(1);expect((await db.query('select * from storage.objects')).rows).toHaveLength(1);
+ await expect(call('add_group_book',[gid,bid])).rejects.toThrow('Only upload your own book');
  expect((await db.query('select * from public.reading_states')).rows).toHaveLength(0);
  expect((await db.query('update public.books set title=$1 where id=$2 returning id',['Attack',bid])).rows).toHaveLength(0);
  await expect(db.query('insert into public.group_members(group_id,user_id,nickname)values($1,$2,$3)',[gid,c,'Outsider'])).rejects.toThrow();

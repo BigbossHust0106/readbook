@@ -1,3 +1,7 @@
+import {Modal} from "./Modal";
+import {TranslationImport} from "./TranslationImport";
+import {applyImportedTranslations} from "./translationImport";
+import {putBookmark,removeBookmark} from "./bookmarks";
 import {useViewportPages} from "./useViewportPages";
 import {SyncPanel} from "./SyncPanel";
 import {flushEdits,syncEdits} from "./cloudSync";
@@ -11,7 +15,7 @@ import { SourceImport } from "./SourceImport";
 import { paginateBook, pageForPosition, translatedFragment, type Fragment } from "./reading";
 import { ReviewPanel } from "./ReviewPanel";
 import { ParentPinSettings, ParentUnlock, enterChildLock } from "./ParentLock";
-import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import {
   BookOpen,
   Library,
@@ -29,6 +33,7 @@ import {
   FileText,
   X,
   Bookmark,
+  BookmarkPlus,
   Volume2,
   Pause,
   Check,
@@ -95,63 +100,6 @@ function download(name: string, blob: Blob) {
   a.download = name;
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-function Modal({
-  title,
-  children,
-  onClose,
-}: {
-  title: string;
-  children: ReactNode;
-  onClose: () => void;
-}) {
-  const ref = useRef<HTMLElement>(null);
-  useEffect(() => {
-    const previous = document.activeElement as HTMLElement | null;
-    ref.current
-      ?.querySelector<HTMLElement>("button,input,textarea,select")
-      ?.focus();
-    return () => previous?.focus();
-  }, []);
-  return (
-    <div className="overlay" onClick={onClose}>
-      <section
-        ref={ref}
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        className="modal"
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => {
-          if (e.key === "Escape") onClose();
-          if (e.key === "Tab") {
-            const nodes = Array.from(
-              ref.current?.querySelectorAll<HTMLElement>(
-                "button:not(:disabled),input:not(:disabled):not([hidden]),textarea:not(:disabled),select:not(:disabled),a[href]",
-              ) || [],
-            ).filter((n) => n.offsetParent !== null);
-            const first = nodes[0],
-              last = nodes[nodes.length - 1];
-            if (e.shiftKey && document.activeElement === first) {
-              e.preventDefault();
-              last?.focus();
-            } else if (!e.shiftKey && document.activeElement === last) {
-              e.preventDefault();
-              first?.focus();
-            }
-          }
-        }}
-      >
-        <header>
-          <h2>{title}</h2>
-          <button aria-label="Đóng" onClick={onClose}>
-            <X size={20} />
-          </button>
-        </header>
-        {children}
-      </section>
-    </div>
-  );
 }
 function LanguageSelect({
   value,
@@ -1577,6 +1525,7 @@ function Reader({
     [newTitle, setNewTitle] = useState(book.title),
     [newAuthor, setNewAuthor] = useState(book.author);
   const [readMode, setReadMode] = useState<"paged" | "continuous">("paged");
+  const [translationImport,setTranslationImport]=useState(false);
   const [pageSize, setPageSize] = useState(2500);
   const [fontFamily,setFontFamily]=useState('noto'),[lineHeight,setLineHeight]=useState(1.85),[paperWidth,setPaperWidth]=useState(1120);
   const fonts:Record<string,string>={noto:'"Noto Sans", sans-serif',serif:'Georgia, "Times New Roman", "Noto Sans", serif',system:'system-ui, "Noto Sans", sans-serif'};
@@ -1835,7 +1784,14 @@ function Reader({
       {sourcePdf && <Modal title={`PDF gốc · trang ${book.chapters[chapter].sourcePage}`} onClose={() => setSourcePdf(null)}>
         <Suspense fallback={<p>Đang mở PDF…</p>}><PdfPageView file={sourcePdf} page={book.chapters[chapter].sourcePage!} /></Suspense>
       </Modal>}
-      <ReaderDock book={book} books={books} words={words} chapter={chapter} onChapter={i=>void goChapter(i)} onBook={onOpenBook} onGroups={onGroups} onPosition={jumpTo} onClose={onCloseMenu} />
+      <ReaderDock book={book} books={books} words={words} chapter={chapter} onChapter={i=>void goChapter(i)} onBook={onOpenBook} onGroups={onGroups} onPosition={jumpTo} onClose={onCloseMenu}
+        onBookmark={async(position,label)=>{await update(putBookmark(latest.current,position,label));notify('Đã lưu dấu trang riêng của bạn.');}}
+        onRemoveBookmark={async(pid,offset)=>{await update(removeBookmark(latest.current,pid,offset));notify('Đã xóa dấu trang.');}} />
+      {translationImport&&<TranslationImport book={book} chapter={chapter} target={target} onClose={()=>setTranslationImport(false)} onSave={async(language,plan,replace,locked)=>{
+        const result=applyImportedTranslations(latest.current,language,plan,replace,locked);
+        if(!result.saved)throw new Error('Không có đoạn mới để lưu. Những đoạn đã có bản dịch hoặc đã khóa vẫn được giữ.');
+        await update(result.book);setTarget(language);setLayout('interleaved');setFloatingTools(false);notify(`Đã nhập ${result.saved} đoạn dịch; giữ ${result.skipped} đoạn đã có hoặc đã khóa.`);
+      }}/>}
       {wordHit&&<WordPopover key={`${wordHit.source}:${wordHit.term}`} word={wordHit} target={wordHit.source===book.language?target:book.language} onClose={closeLookup} onSave={async(term,meaning)=>{
         const paragraph=book.chapters.flatMap(c=>c.paragraphs).find(p=>p.id===wordHit.paragraphId)!;
         await onWord({id:id(),term,meaning,language:wordHit.source,status:'new',createdAt:new Date().toISOString(),contexts:[{bookId:book.id,bookTitle:book.title,paragraphId:paragraph.id,sentence:wordHit.source===book.language?paragraph.text:paragraph.translations[wordHit.source]?.text||paragraph.text}]});
@@ -1989,6 +1945,7 @@ function Reader({
         </label>
         <p className="muted">{cap?.reason || `Nhà cung cấp: ${cap?.provider || "chưa cấu hình"}`}</p>
         <div className="row">
+          <button disabled={translating} onClick={()=>{closeLookup();setTranslationImport(true);}}>Nhập bản dịch có sẵn</button>
           <button className="primary" disabled={!supported || translating || !consent} onClick={() => void translate("page")}>{readMode === "paged" ? "Dịch trang này" : "Dịch phần đang đọc"}</button>
           <button disabled={!supported || translating || !consent} onClick={() => void translate("book")}>Dịch toàn sách / tiếp tục</button>
           <button
@@ -2107,7 +2064,7 @@ function Reader({
                         <span className="translation-label">
                           {p.translations[target]!.provider === "manual"
                             ? "Đã sửa thủ công"
-                            : "Dịch máy · " + p.translations[target]!.provider}
+                            : p.translations[target]!.provider === 'import' ? 'Bản dịch nhập sẵn' : "Dịch máy · " + p.translations[target]!.provider}
                           {p.translations[target]!.locked ? " · Đã khóa" : ""}
                         </span>
                       </>
@@ -2130,6 +2087,7 @@ function Reader({
               </div>
               <div className="paragraph-actions">
                 <span>{String(i + 1).padStart(2, "0")}</span>
+                <button aria-label={`Thêm dấu trang đoạn ${i+1}`} title="Lưu thêm dấu trang" onClick={()=>void update(putBookmark(latest.current,{chapter:ci,paragraph:i,offset:fragment.start})).then(()=>notify('Đã lưu dấu trang. Mở menu → Dấu trang để xem.')).catch(e=>notify(errorText(e)))}><BookmarkPlus size={15}/></button>
                 <button
                   aria-label={`Lưu vị trí đoạn ${i + 1}`}
                   title="Lưu vị trí để đọc tiếp"
@@ -2222,7 +2180,7 @@ function Reader({
               onClick={async () => {
                 try {
                   await patchParagraph(editing.id, (p) => ({
-                    ...applyTranslation(p, target, editedText, "manual"),
+                    ...(editedText!==(editing.translations[target]?.text||'')?applyTranslation(p, target, editedText, "manual"):p),
                     note,
                   }));
                   setEditing(null);

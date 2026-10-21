@@ -11,12 +11,14 @@ export type Translation = {
   locked: boolean;
   history: string[];
 };
+export type ReadingBookmark = { label:string; offset:number; createdAt:string };
 export type Paragraph = {
   id: string;
   text: string;
   translations: Partial<Record<Lang, Translation>>;
   note?: string;
   highlight?: boolean;
+  bookmarks?: Record<string,ReadingBookmark>;
 };
 export type Chapter = { sourcePage?: number; ocr?: boolean; id: string; title: string; paragraphs: Paragraph[] };
 export type Book = {
@@ -194,6 +196,10 @@ export function assertBook(value: unknown): asserts value is Book {
       )
         throw new Error("Đoạn văn không hợp lệ.");
       ids.add(p.id);
+      if(p.bookmarks!==undefined){
+        if(!p.bookmarks||typeof p.bookmarks!=='object'||Array.isArray(p.bookmarks))throw new Error('Dấu trang không hợp lệ.');
+        for(const [key,mark] of Object.entries(p.bookmarks))if(!mark||typeof mark.label!=='string'||!mark.label.trim()||mark.label.length>120||!Number.isInteger(mark.offset)||mark.offset<0||mark.offset>p.text.length||key!==String(mark.offset)||!Number.isFinite(Date.parse(mark.createdAt)))throw new Error('Dấu trang không hợp lệ.');
+      }
       for (const [key, t] of Object.entries(p.translations))
         if (
           !["vi", "zh", "en"].includes(key) ||
