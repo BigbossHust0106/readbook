@@ -36,7 +36,8 @@ function endpoint(env: Env) {
 async function providerLanguages(base: string) {
   const r = await fetch(`${base}/languages`, {
     signal: AbortSignal.timeout(10000),
-    redirect: "error",
+    // Cloudflare Workers does not implement redirect: "error". Reject non-2xx below.
+    redirect: "manual",
   });
   if (!r.ok)
     throw new Error("Không đọc được danh sách mô hình từ máy chủ dịch.");
@@ -171,7 +172,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
             : {}),
         }),
         signal: AbortSignal.timeout(25000),
-        redirect: "error",
+        redirect: "manual",
       });
       if (r.status === 429)
         return json(

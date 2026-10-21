@@ -28,7 +28,9 @@ export async function myMemory(request: Request): Promise<Response> {
   const fetchChunk=async(url:URL)=>{
     for(let attempt=0;attempt<2;attempt++){
       try {
-        const response=await fetch(url,{signal:AbortSignal.any([deadline,request.signal,AbortSignal.timeout(12000)]),redirect:'error'});
+        // workerd accepts only "manual" or "follow"; non-2xx (including redirects)
+        // is rejected below, so text is never forwarded to a redirect destination.
+        const response=await fetch(url,{signal:AbortSignal.any([deadline,request.signal,AbortSignal.timeout(12000)]),redirect:'manual'});
         // Retry transient transport/server failures once, never quota or language errors.
         if(attempt===0&&response.status>=500){await response.body?.cancel();continue;}
         return response;
