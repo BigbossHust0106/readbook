@@ -1,5 +1,6 @@
 import {Modal} from "./Modal";
 import {FileDropZone} from "./FileDropZone";
+import {bookFileMetadata,splitBookName} from "./bookMetadata";
 import {TranslationImport} from "./TranslationImport";
 import {applyImportedTranslations} from "./translationImport";
 import {putBookmark,removeBookmark} from "./bookmarks";
@@ -1320,8 +1321,8 @@ function ImportModal({
 }) {
   const [file, setFile] = useState<File | null>(initialFile),
     [text, setText] = useState(""),
-    [title, setTitle] = useState(initialFile?.name.replace(/\.[^.]+$/, "")||""),
-    [author, setAuthor] = useState(""),
+    [title, setTitle] = useState(initialFile?bookFileMetadata(initialFile.name).title:''),
+    [author, setAuthor] = useState(initialFile?bookFileMetadata(initialFile.name).author:''),
     [language, setLanguage] = useState<Lang>("vi"),
     [genre, setGenre] = useState(""),
     [busy, setBusy] = useState(false),
@@ -1335,6 +1336,20 @@ function ImportModal({
   const [progress, setProgress] = useState<PdfProgress | null>(null);
   const [extracting, setExtracting] = useState(false);
   const controller = useRef<AbortController | null>(null);
+  const suggested=useRef(initialFile?bookFileMetadata(initialFile.name):{title:'',author:''});
+  function chooseFile(next:File,sourceTitle='',sourceAuthor=''){
+    const fromFile=bookFileMetadata(next.name),guess=sourceTitle?sourceAuthor?{title:sourceTitle.trim(),author:sourceAuthor.trim()}:splitBookName(sourceTitle):{...fromFile,author:sourceAuthor.trim()||fromFile.author};
+    resetPdf();setFirstPage(1);setLastPage('');setFile(next);
+    if(next.size>MAX_FILE)setError('Tệp tối đa 50 MB.');
+    if(!title.trim()||title===suggested.current.title)setTitle(guess.title);
+    if(!author.trim()||author===suggested.current.author)setAuthor(guess.author);
+    suggested.current=guess;
+  }
+  function splitEnteredTitle(){
+    if(author.trim()&&author!==suggested.current.author)return;
+    const guess=splitBookName(title);
+    if(guess.author){setTitle(guess.title);setAuthor(guess.author);suggested.current=guess;}
+  }
   useEffect(() => () => controller.current?.abort(), []);
   function resetPdf() { setPdfPages(null); setPdfDraftId(''); setPdfIndex(0); setProgress(null); setError(""); }
   async function processPdf() {
@@ -1358,8 +1373,8 @@ function ImportModal({
     setError("");
     try {
       const book = await importDocument(file, text, {
-        title,
-        author,
+        title:!author.trim()?splitBookName(title).title:title,
+        author:author.trim()||splitBookName(title).author,
         language,
         genre,
       }, isPdf && pdfPages ? { pdfPages } : undefined);
@@ -1384,12 +1399,8 @@ function ImportModal({
       <p className="muted">
         Tệp gốc được giữ riêng. PDF/OCR xử lý trên thiết bị; khi dùng chế độ cloud, tệp gốc và văn bản sẽ được lưu vào tài khoản của bạn.
       </p>
-      <SourceImport onBusy={setBusy} disabled={busy} onFile={(next, sourceTitle, sourceAuthor) => { resetPdf(); setFirstPage(1); setLastPage(""); setFile(next); setTitle(sourceTitle || next.name.replace(/\.[^.]+$/, "")); if (sourceAuthor) setAuthor(sourceAuthor); }} />
-      <FileDropZone file={file} disabled={busy} onError={setError} onFile={f=>{
-        resetPdf();setFirstPage(1);setLastPage('');setFile(f);
-        if(f.size>MAX_FILE)setError('Tệp tối đa 50 MB.');
-        if(!title||title===file?.name.replace(/\.[^.]+$/,''))setTitle(f.name.replace(/\.[^.]+$/,''));
-      }}/>
+      <SourceImport onBusy={setBusy} disabled={busy} onFile={chooseFile} />
+      <FileDropZone file={file} disabled={busy} onError={setError} onFile={chooseFile}/>
       {file ? (
         <button className="text-button" disabled={busy} onClick={() => { setFile(null); resetPdf(); }}>
           Dùng văn bản dán thay thế
@@ -1413,6 +1424,7 @@ function ImportModal({
             aria-label="Tên sách"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            onBlur={splitEnteredTitle}
           />
         </label>
         <label>

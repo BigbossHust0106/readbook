@@ -154,3 +154,12 @@ Kiểm tra cuối: **65/65 Vitest**, toàn bộ **43/43 Chromium E2E**, producti
 Kiểm tra cuối: production build đạt; **65/65 Vitest**, toàn bộ **47/47 Chromium E2E** đạt. Sau tinh chỉnh nút chọn tệp tiếng Việt, chạy lại cả bốn file-drop case; bao gồm focus input + Space mở file chooser và chọn tệp trong viewport mobile. `git diff --check` đạt, dist không chứa cấu hình cloud fixture. Không thay schema hoặc cấu hình Supabase, không tăng giới hạn tệp hoặc dùng dịch vụ xử lý mới.
 
 Triển khai **15:43 ngày 21/10/2026 (+07:00)**, Worker `readbook`, version **0f496650-c365-41ce-976c-5cb161df6aba**; API Cloudflare xác nhận **100% traffic**. Public `/api/health` từ Codex vẫn HTTP 403; không báo đã nghiệm thu browser trên URL công khai.
+
+
+## Tự tách tên sách và tác giả — 21/10/2026
+
+Tên tệp dạng `ABC - XYZ.pdf` bỏ đuôi định dạng rồi tách thành title `ABC`, author `XYZ`; nhận diện dấu gạch ngang có khoảng trắng, dùng dấu cuối nếu có nhiều dấu, trim hai phần và không tách khi một phần trống. Tên không có mẫu giữ nguyên. Áp dụng cả library drop, file picker, nhập trong nhóm (cùng ImportModal), fallback nguồn thiếu author và tên gõ trực tiếp khi rời ô. Metadata tác giả rõ từ nguồn hoặc tác giả sửa tay được giữ; đổi tệp chỉ cập nhật trường trống/giá trị tự gợi ý. Không thay các sách đã lưu.
+
+Production build/TypeScript và diff check đạt. **8/8 E2E liên quan** đạt: kéo TXT Unicode tự điền hai ô rồi nhập/tải nguyên tệp, thay tệp giữ tên/tác giả sửa tay, nhập trực tiếp ` ABC - XYZ ` thành ABC/XYZ trên mobile, PDF và nhập metadata nguồn hiện có. Không chạy lại toàn bộ unit/E2E vì đây là thay đổi form metadata; không báo các lượt kiểm thử cũ thành lượt mới.
+
+Triển khai **16:14 ngày 21/10/2026 (+07:00)**, version **a407e362-6c9b-43d4-a59f-4e8540f995a9**, Worker `readbook`; API Cloudflare xác nhận **100% traffic**. Kiểm thử UI dùng localhost; không báo đã nghiệm thu browser trên URL công khai.

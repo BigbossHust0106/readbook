@@ -153,3 +153,6 @@ Trong **Nhóm đọc & cloud**, chọn nhóm → **Chọn sách từ cloud của
 Trên máy tính, kéo **một tệp** PDF/EPUB/TXT/DOCX/HTML vào vùng **Kéo thả sách vào thư viện** hoặc vùng chọn tệp trong cửa sổ **Thêm sách**. Vùng nhận sáng lên khi kéo qua. Kiểm tra tên sách, tác giả và ngôn ngữ rồi **Nhập & lưu sách**. PDF vẫn cần **Đọc PDF / OCR** và kiểm tra văn bản trước khi lưu. Tối đa 50 MB/tệp.
 
 Trong nhóm chọn **Thêm sách vào nhóm**, rồi kéo tệp vào cửa sổ nhập; sách được thêm vào nhóm đang chọn. Điện thoại vẫn dùng nút chọn tệp. Thả nhầm nhiều tệp, thư mục hoặc định dạng không hỗ trợ sẽ báo lỗi và giữ nội dung đang nhập. Kéo thả chưa hỗ trợ nhập hàng loạt.
+
+
+Khi thêm sách, tên dạng **ABC - XYZ.pdf** tự điền **Tên sách: ABC**, **Tác giả: XYZ**. Áp dụng cho chọn tệp, kéo thả và tên nhập trực tiếp (tách khi rời ô tên). Nếu có nhiều dấu ` - `, dùng dấu cuối để giữ phụ đề ở phần tên sách. Không tách dấu nối liền như `Jean-Paul`. Bạn có thể sửa hai ô trước khi lưu; đổi tệp giữ các giá trị đã sửa tay.
