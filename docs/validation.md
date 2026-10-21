@@ -103,3 +103,14 @@ Kiểm tra cuối: `tsc -b`, build production và `git diff --check` đạt; **4
 - `npm test`: **50/50 đạt**. `npm run build`: đạt. Toàn bộ Chromium E2E sau cập nhật menu/selection/pagination: **34/34 đạt**. Có ảnh desktop/mobile/landscape/menu và form conflict bằng văn bản tổng hợp ở /tmp. `git diff --check` đạt. Không bật provider AI có phí hoặc tạo project mới.
 
 Triển khai **13:56 ngày 21/10/2026 (+07:00)**, Worker `readbook`, version **87242d13-6bea-4f49-9f40-b2a1dbf28ab5**; Cloudflare management API xác nhận 100% traffic. Provider MyMemory enabled, local fixture disabled. Public `/api/health` từ mạng Codex vẫn HTTP 403; không báo đã nghiệm thu browser trực tiếp trên URL public.
+
+
+## Sửa lỗi bảng dịch và lưu từ — 21/10/2026
+
+- Bổ sung nút **Dịch / Thử dịch lại** ngay trong bảng. Dịch theo nội dung đang sửa, không dùng lại selection cũ. Giữ nghĩa tự nhập khi kết quả về muộn; có **Dùng bản dịch** để chủ động thay nghĩa. Sửa từ/đóng bảng hủy yêu cầu trước và bỏ qua kết quả cũ.
+- Giới hạn chờ 50 giây trên client kể cả bộ dịch native bị treo; thông báo mất mạng, response không hợp lệ và timeout đều có thể thử lại. Chỉ cache bản dịch hợp lệ, lỗi ghi cache không biến kết quả dịch thành lỗi.
+- Worker thử lại tối đa một lần khi lỗi transport/HTTP 5xx; không tự thử lại quota hoặc kết quả bị provider từ chối. Mỗi lần kết nối tối đa 12 giây, deadline toàn yêu cầu 45 giây. JSON đầu vào hỏng trả 400. Không thêm API/gói trả phí hoặc thay dữ liệu Supabase.
+- **54/54 Vitest**, **37/37 Chromium E2E**, production build và diff check đạt. E2E mới mô phỏng HTTP 502 → sửa cụm → thử lại; bảo vệ nghĩa tự nhập; chặn response cũ; dữ liệu không phải JSON; treo request → timeout → thử lại.
+- Browser mobile chạy đúng production build + Worker handler qua Node proxy/TLS của phiên: tạo lỗi đầu tiên có nhãn fixture, bấm **Thử dịch lại**, rồi gọi MyMemory chính thức thật với cụm “, trong lòng dì sẽ cảm thấy áp lực, lỡ như hai tiếng”, nhận “In her heart, she would feel the pressure, like two hours.”. Đây là bằng chứng luồng thử lại và upstream tại thời điểm kiểm tra, không phải bảo đảm uptime/chất lượng văn học hoặc nghiệm thu Worker public URL. MyMemory vẫn có hạn mức miễn phí; Google Dịch vẫn là liên kết web, không phải API Google đã cấu hình.
+
+Triển khai lúc **14:12 ngày 21/10/2026 (+07:00)**, Worker `readbook`, version **234bb7aa-1643-478b-ab25-57930f6292f8**. API quản lý xác nhận version nhận 100% traffic, `TRANSLATION_ENABLED=true`, `TRANSLATION_PROVIDER=mymemory`, `LOCAL_TRANSLATION=false`. Public `/api/health` từ Codex tiếp tục HTTP 403; không báo đã nghiệm thu browser trên URL công khai.

@@ -20,6 +20,30 @@ test('only selecting text opens the combined translate and vocabulary form; hove
  const popup=page.getByRole('dialog',{name:'Dịch và lưu từ'});await expect(popup.getByLabel('Nghĩa của từ')).toHaveValue('Đọc sách');expect(sent).toEqual(['Reading books']);await popup.getByLabel('Nghĩa của từ').fill('Nghĩa đã sửa');await popup.getByRole('button',{name:'Lưu từ',exact:true}).click();await expect(popup).toContainText('Đã lưu từ');await popup.getByRole('button',{name:'Đóng tra từ'}).click();
  await openMenu(page);await expect(page.locator('.sidebar nav')).toContainText('Thư viện của tôi');await expect(page.locator('.sidebar nav')).toContainText('Cài đặt & kết nối');await expect(page.locator('.reader-sidebar-panel')).toBeVisible();await page.screenshot({path:'/tmp/readbook-unified-menu.png'});
 });
+test('failed selection translation can retry edited text and preserves a manually entered meaning',async({page})=>{
+ await page.setViewportSize({width:390,height:844});
+ const sent:string[]=[];let reply:()=>Promise<void>=async()=>{};
+ await page.route('**/api/translate',async route=>{sent.push(route.request().postDataJSON().text);if(sent.length===1)return route.fulfill({status:502,json:{error:'Không kết nối được nguồn dịch MyMemory. Hãy thử dịch lại.'}});await new Promise<void>(resolve=>{reply=async()=>{await route.fulfill({json:{text:'Bản dịch sau khi thử lại',provider:'Test fixture'}});resolve();};});});
+ await add(page,'Reading books opens new worlds.');await page.locator('[data-reading-source]').first().evaluate(el=>{const r=document.createRange();r.setStart(el.firstChild!,0);r.setEnd(el.firstChild!,7);const s=getSelection()!;s.removeAllRanges();s.addRange(r);});
+ const popup=page.getByRole('dialog',{name:'Dịch và lưu từ'});await expect(popup.getByRole('button',{name:'Thử dịch lại',exact:true})).toBeEnabled();await expect(popup.getByLabel('Nghĩa của từ')).toHaveValue('');
+ await popup.getByLabel('Từ muốn lưu').fill('Edited selection');await popup.getByRole('button',{name:'Dịch',exact:true}).click();await expect.poll(()=>sent.length).toBe(2);
+ await popup.getByLabel('Nghĩa của từ').fill('Nghĩa tự nhập cần giữ');await reply();await expect(popup.getByRole('button',{name:'Dùng bản dịch',exact:true})).toBeVisible();await expect(popup.getByLabel('Nghĩa của từ')).toHaveValue('Nghĩa tự nhập cần giữ');expect(sent).toEqual(['Reading','Edited selection']);
+ await popup.getByRole('button',{name:'Dùng bản dịch',exact:true}).click();await expect(popup.getByLabel('Nghĩa của từ')).toHaveValue('Bản dịch sau khi thử lại');await popup.getByRole('button',{name:'Lưu từ',exact:true}).click();await expect(popup).toContainText('Đã lưu từ');
+ await expect(popup.getByRole('link',{name:'Google Dịch'})).toHaveAttribute('href',/text=Edited%20selection/);
+ const box=await popup.boundingBox();expect(box!.x).toBeGreaterThanOrEqual(0);expect(box!.x+box!.width).toBeLessThanOrEqual(390);await page.screenshot({path:'/tmp/readbook-translation-retry-mobile.png'});
+});
+test('editing selected text cancels an old response and malformed replies remain retryable',async({page})=>{
+ let finish:()=>Promise<void>=async()=>{};let sent=0;
+ await page.route('**/api/translate',async route=>{sent++;if(sent===1)await new Promise<void>(resolve=>{finish=async()=>{await route.fulfill({json:{text:'Stale translation',provider:'Test fixture'}}).catch(()=>{});resolve();};});else await route.fulfill({status:200,body:'not JSON',contentType:'text/html'});});
+ await add(page,'Reading books opens new worlds.');await page.locator('[data-reading-source]').first().evaluate(el=>{const r=document.createRange();r.setStart(el.firstChild!,0);r.setEnd(el.firstChild!,7);const s=getSelection()!;s.removeAllRanges();s.addRange(r);});
+ const popup=page.getByRole('dialog',{name:'Dịch và lưu từ'});await expect.poll(()=>sent).toBe(1);await popup.getByLabel('Từ muốn lưu').fill('Another term');await finish();await expect(popup.getByLabel('Nghĩa của từ')).toHaveValue('');await popup.getByRole('button',{name:'Dịch',exact:true}).click();await expect(popup.getByRole('button',{name:'Thử dịch lại',exact:true})).toBeEnabled();await expect(popup).not.toContainText('Stale translation');
+});
+test('a stalled lookup times out, keeps the draft, and allows a fresh retry',async({page})=>{
+ let finish:()=>Promise<void>=async()=>{},sent=0;
+ await page.route('**/api/translate',async route=>{sent++;if(sent===1)await new Promise<void>(resolve=>{finish=async()=>{await route.fulfill({json:{text:'Too late',provider:'Test fixture'}}).catch(()=>{});resolve();};});else await route.fulfill({json:{text:'Fresh translation',provider:'Test fixture'}});});
+ await add(page,'Reading books opens new worlds.');await page.clock.install();await page.locator('[data-reading-source]').first().evaluate(el=>{const r=document.createRange();r.setStart(el.firstChild!,0);r.setEnd(el.firstChild!,7);const s=getSelection()!;s.removeAllRanges();s.addRange(r);});await page.clock.fastForward(500);await expect.poll(()=>sent).toBe(1);
+ const popup=page.getByRole('dialog',{name:'Dịch và lưu từ'});await popup.getByLabel('Nghĩa của từ').fill('My draft');await page.clock.fastForward(51000);await expect(popup).toContainText('Dịch quá thời gian chờ');await expect(popup.getByRole('button',{name:'Thử dịch lại',exact:true})).toBeEnabled();await finish();await expect(popup.getByLabel('Nghĩa của từ')).toHaveValue('My draft');await popup.getByRole('button',{name:'Thử dịch lại',exact:true}).click();await expect(popup).toContainText('Fresh translation');await expect(popup.getByLabel('Nghĩa của từ')).toHaveValue('My draft');
+});
 test('long bilingual fragments fit a narrow page and preserve translated text across pages',async({page})=>{
  const source='Đọc sách mỗi ngày. '.repeat(75).trim(),translation='Reading books can open new worlds and bring new ideas. '.repeat(90).trim();await add(page,source);
  await page.getByRole('button',{name:'Sửa bản dịch và ghi chú đoạn 1'}).click();await page.getByLabel('Bản dịch thủ công').fill(translation);await page.getByRole('button',{name:'Lưu thay đổi',exact:true}).click();await readyPage(page);

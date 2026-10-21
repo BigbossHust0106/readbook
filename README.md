@@ -131,3 +131,6 @@ Mở **Mục lục**, nhập vào **Tìm chương hoặc toàn sách** để tì
 Thêm sách, sửa nội dung gốc và thao tác tệp gốc cloud vẫn cần mạng. Đợt này chưa thêm dịch vụ AI trả phí hoặc xử lý tác vụ khi trình duyệt đóng.
 
 Ở chế độ lật trang, bấm **Hiện công cụ** để đổi cỡ chữ, phông, khoảng dòng, chiều rộng hoặc chuyển sang cuộn liên tục. Khi đóng công cụ, trang đọc vừa màn hình và không cần kéo dọc. Bôi đen từ/cụm để dịch; bảng nổi cho chỉnh nghĩa và **Lưu từ**, không tự hiện khi rê chuột. Giới hạn phần bôi đen là 1.000 ký tự; dịch trang/chương vẫn là thao tác riêng trong công cụ.
+
+
+Trong bảng **Dịch và lưu từ**, nếu nguồn dịch gián đoạn hãy bấm **Thử dịch lại**. Bạn có thể sửa cụm từ rồi bấm **Dịch**. Nghĩa tự nhập được giữ khi kết quả đến; bấm **Dùng bản dịch** nếu muốn thay bằng kết quả mới. **Google Dịch** mở riêng khi cần; nguồn MyMemory miễn phí vẫn có hạn mức.
