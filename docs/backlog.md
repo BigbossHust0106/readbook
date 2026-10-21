@@ -42,8 +42,8 @@
 - ⏳ Căn chỉnh bản dịch nhập sẵn; rich illustrations/metadata sau nhập; series/tập/chương và theo dõi chương mới ở nguồn hỗ trợ.
 - ⏳ Online providers/API/OPDS/RSS chính thức; metadata khác full-text, phân quyền/bản quyền rõ; lọc ba ngôn ngữ, tác giả/thể loại/tuổi/trình độ/độ dài; URL import theo allowlist chống SSRF/redirect/DNS rebinding, không DRM/paywall.
 - ✅ SRS cơ bản: hiện nghĩa, tự đánh giá chưa nhớ/còn khó/đã nhớ, lịch 10 phút/ngày, lưu cùng từ vựng local/cloud.
-- ⏳ Tra từ đa nghĩa/ngữ cảnh/lemma/idiom/phrasal verbs; multi-selection; decks theo sách/ngôn ngữ/chủ đề, CSV Anki đã xác minh; cloze/listening/dịch hai chiều/reading questions.
-- ✅ PWA shell và đọc local offline; ⏳ tải trước dịch/audio/deck, quản lý dung lượng/eviction/persistent-storage, outbox offline cho cloud, conflict UI, realtime sync.
+- ✅ Tra từ nổi khi hover/chạm, cache 30 ngày, lưu sổ từ; liên kết Google Dịch. ⏳ Đa nghĩa/ngữ cảnh/lemma/idiom/phrasal verbs; multi-selection; decks theo sách/ngôn ngữ/chủ đề, CSV Anki đã xác minh; cloze/listening/dịch hai chiều/reading questions.
+- ✅ PWA shell, cache sách cloud đã mở, outbox vị trí offline, polling 10 giây và khôi phục phiên đăng nhập. ✅ Nhóm đọc với sách canonical chống trùng hash/ngôn ngữ trong nhóm, mã mời, tag vị trí từng tài khoản và annotations riêng. ✅ Nút chuyển dữ liệu thiết bị sang cloud. ⏳ Outbox cho mọi chỉnh sửa, tải trước audio/deck, quản lý eviction, merge annotations đồng thời, Supabase Realtime.
 - ⏳ Bộ sưu tập/tag/sắp xếp nâng cao; xóa toàn tài khoản và tất cả tệp liên quan, mã hóa thiết bị theo thiết kế threat model, telemetry consent tách riêng.
 - ⏳ Hanzii notebook CSV có schema đã xác minh và log import/export cloud; API/OAuth/Pro chỉ khi nhà cung cấp cho phép. Không scrape cookie/password/API nội bộ.
 
@@ -56,4 +56,4 @@
 
 ## Nghiệm thu production còn lại
 
-Đã có kết nối Cloudflare/Supabase, deploy Worker hiện có và đọc cấu hình project/bucket/RLS/Auth. MyMemory đã được bật và kiểm tra upstream thật, không cần endpoint dịch tự quản lý cho provider mặc định. Còn nghiệm thu hosted Auth/Storage bằng hai tài khoản, nhiều thiết bị và private files trên URL production; mạng Codex vẫn nhận HTTP 403/1010 từ URL công khai. DTV cũng chặn server fetch ở môi trường kiểm tra, vì vậy chỉ xác nhận bộ tìm kiếm mở trong browser và parser/flow qua fixture, chưa xác nhận danh mục live. Không coi các phần bị chặn là đã nghiệm thu xong.
+Đã có kết nối Cloudflare/Supabase, deploy Worker hiện có và đọc cấu hình project/bucket/RLS/Auth. MyMemory đã được bật và kiểm tra upstream thật, không cần endpoint dịch tự quản lý cho provider mặc định. Đã nghiệm thu hosted Auth/Storage bằng ba tài khoản tạm, nhóm/quyền và vị trí trên nhiều browser độc lập qua build local. Còn kiểm tra giao diện qua URL production; mạng Codex vẫn nhận HTTP 403/1010 từ URL công khai. DTV cũng chặn server fetch ở môi trường kiểm tra, vì vậy chỉ xác nhận bộ tìm kiếm mở trong browser và parser/flow qua fixture, chưa xác nhận danh mục live. Không coi các phần bị chặn là đã nghiệm thu xong.

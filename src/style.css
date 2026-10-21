@@ -1884,3 +1884,52 @@ body.child-mode .app > main {
 .source-import > .row { flex-wrap: wrap; }
 .source-import > .row a { white-space: normal; }
 .app:has(.reader) .toast { bottom: calc(85px + env(safe-area-inset-bottom)); }
+
+/* The reader owns its navigation: the library sidebar stays outside the reading surface. */
+body.reading-mode .app > .sidebar, body.reading-mode .app > main > .topbar { display:none; }
+body.reading-mode .app > main { margin-left:58px; width:calc(100% - 58px); }
+.reader-dock { position:fixed;left:0;top:0;bottom:0;width:58px;background:#f6f8f1;border-right:1px solid #dce4d6;z-index:65; }
+.reader-dock > nav { display:flex;flex-direction:column;gap:12px;padding:24px 7px; }
+.reader-dock > nav > button { width:44px;height:46px;padding:10px;border:0;background:transparent; }
+.reader-dock > nav > button:hover, .reader-dock > nav > button:focus { background:#e4eddc; }
+.reader-mobile-menu { display:none; }
+.reader-flyout { position:absolute;left:58px;top:0;bottom:0;width:min(350px,calc(100vw - 72px));padding:18px;background:#fffdf8;box-shadow:8px 0 24px #263b2b24;overflow-y:auto; }
+.reader-flyout header { display:flex;align-items:center;justify-content:space-between;gap:10px; }
+.reader-flyout h2 { font-size:20px; }
+.reader-flyout .flyout-tabs { gap:5px;flex-wrap:wrap; }
+.reader-flyout .flyout-tabs button { padding:6px; font-size:11px; }
+.flyout-item { display:block;width:100%;padding:12px;text-align:left;margin:7px 0;background:transparent; }
+.flyout-item strong,.flyout-item small { display:block; }
+.flyout-word { padding:10px 0;border-bottom:1px solid #e3e8da; }
+.flyout-word p { margin:4px 0; }
+.show-reader-tools { position:fixed;top:12px;right:16px;z-index:85;box-shadow:0 2px 10px #183c3020;background:#fffef9; }
+.reader-controls.tools-floating { position:fixed;z-index:75;top:8px;left:74px;right:12px;padding:50px 18px 12px;max-height:78dvh;overflow-y:auto;border:1px solid #d9e3d1;border-radius:12px;box-shadow:0 8px 40px #18352635;background:#fffdf8; }
+.reader-page-status { position:fixed;left:58px;right:0;bottom:0;z-index:12;pointer-events:none;text-align:center;padding:8px 12px calc(8px + env(safe-area-inset-bottom));font-size:10px;background:#fffdf7ed;color:#687b60; }
+.reader .reading-paper.mode-paged { min-height:calc(100dvh - 95px);touch-action:pan-y; }
+.word-popover { position:fixed;z-index:100;width:min(320px,calc(100vw - 24px));max-height:280px;overflow:auto;border:1px solid #cfdcc4;border-radius:12px;box-shadow:0 5px 30px #1c3e2940;background:#fffffb;padding:14px;font-size:13px;color:#2d4434; }
+.word-popover header { display:flex;justify-content:space-between;align-items:center;gap:14px; }
+.word-popover header strong { font-size:20px; }
+.word-popover header button { border:0;padding:3px 8px; }
+.word-popover .word-meaning { font-size:18px;line-height:1.6;white-space:pre-wrap;margin:12px 0; }
+.word-popover .row { margin-top:12px;flex-wrap:wrap; }
+.word-popover .row a { font-size:12px; }
+.reader:has(.word-popover) .paragraph-actions { opacity:0;pointer-events:none; }
+.group-members,.progress-tags { display:flex;gap:8px;flex-wrap:wrap;margin:16px 0; }
+.group-book-list article { padding:18px 0;border-bottom:1px solid #dce5d4; }
+.group-book-list article > strong { display:block;margin-bottom:10px; }
+.group-forms form { padding:10px 0; }
+.theme-dark .reader-flyout,.theme-dark .reader-controls.tools-floating,.theme-dark .word-popover { background:#27342c;color:#edf2e5; }
+.theme-dark .reader-page-status { background:#223128e8; }
+@media(max-width:600px) {
+ body.reading-mode .app > main { margin-left:0;width:100%; }
+ .reader-dock { width:0;border:0;background:transparent; }
+ .reader-dock > nav { display:none; }
+ .reader-mobile-menu { display:flex;position:fixed;left:9px;top:9px;z-index:70;padding:8px;background:#fffff3e8;box-shadow:0 2px 8px #20352625; }
+ .reader-flyout { position:fixed;left:0;top:0;bottom:0;width:min(350px,calc(100vw - 28px));padding-top:45px; }
+ .reader-controls.tools-floating { left:8px;right:8px;padding-top:52px; }
+ .reader-page-status { left:0;font-size:9px; }
+ .reader { padding-top:60px; }
+ .show-reader-tools { right:9px;top:9px; }
+}
+/* Leave the first line clear of the floating mobile menu when changing pages. */
+.reading-paper { scroll-margin-top:82px; }

@@ -111,3 +111,13 @@ Chọn **Lật trang** hoặc **Cuộn liên tục**. Thanh kéo 500–8.000 ký
 Trong **Thêm sách → Tìm sách trên DTV-Ebook**, gõ tên sách/tác giả/chủ đề rồi **Tìm trên DTV** (giao diện tìm kiếm của nguồn) hoặc **Tìm bằng Google trong DTV**. **Tải danh mục mới** chỉ đọc tiêu đề/link trên trang chủ nếu nguồn cho phép, lọc danh sách theo từ khóa tại ứng dụng. Mở đúng trang nguồn để tải, rồi dùng **Chọn tệp sách**. Metadata không đồng nghĩa quyền tải toàn văn. Không tải hàng loạt hoặc vượt CAPTCHA/đăng nhập. Nguồn mẫu hiện trả 403/1010 từ mạng Codex; phần tải danh mục trực tiếp chưa nghiệm thu live. Tìm kiếm mở trong trình duyệt vẫn có sẵn khi API danh mục bị chặn.
 
 Mục nâng cao nhận liên kết cùng miền dtv-ebook.com.vn/www.dtv-ebook.com.vn để xem metadata và tải tệp EPUB/PDF/DOCX/TXT công khai khi người dùng xác nhận có quyền sử dụng. Redirect ra miền khác và URL tùy ý bị chặn; nguồn tải bên ngoài được mở trên trang nguồn thay vì proxy tự động.
+
+## Đọc trên nhiều thiết bị và trong nhóm
+
+Đăng nhập cùng tài khoản trong **Cài đặt & kết nối** trên các thiết bị. Với sách cũ đang lưu riêng trong trình duyệt, bấm **Đưa dữ liệu thiết bị lên cloud** trên chính thiết bị đó một lần; sách/tệp gốc, ghi chú, từ vựng và hồ sơ trẻ được chuyển, bản local vẫn giữ. Nếu chưa có tài khoản, đăng ký và xác nhận email rồi đăng nhập.
+
+Mở **Nhóm đọc & cloud**, đặt tên hiển thị, tạo nhóm rồi **Thêm sách vào nhóm**. Chủ nhóm tạo mã mời, người khác đăng nhập và nhập mã trong cùng màn hình. Tệp giống hệt và cùng ngôn ngữ được dùng lại trong nhóm; mỗi thành viên có tag tiến độ riêng, ghi chú/bản dịch riêng. Bấm **Xem tag tiến độ** để xem các thành viên đang đọc đến đâu.
+
+Trình đọc tự mở lại sách và vị trí cuối. Máy tính bấm khoảng trống/lề bên trái hoặc phải để lật trang, hoặc dùng phím mũi tên; điện thoại vuốt ngang. Chạm trực tiếp chữ để tra từ. **Hiện công cụ** mở thanh phía trên tại vị trí đang đọc. Thanh bên trái mở mục lục/thư viện/từ vựng khi hover; mobile dùng nút menu.
+
+Đồng bộ dùng polling khoảng 10 giây khi online; vị trí offline được gửi lại khi nối mạng. Google Dịch mở qua liên kết theo từ, dịch nổi dùng MyMemory hoặc mô hình đã có sẵn trong trình duyệt; MyMemory có hạn mức miễn phí.

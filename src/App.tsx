@@ -1,3 +1,9 @@
+import { ReaderDock } from "./ReaderDock";
+import { WordPopover } from "./WordPopover";
+import { hitWord, type HitWord } from "./wordLookup";
+import { useReadingProgress } from "./useReadingProgress";
+import { GroupsPanel } from "./GroupsPanel";
+import { importGroupBook } from "./groups";
 import { SourceImport } from "./SourceImport";
 import { paginateBook, pageForPosition, translatedFragment, type Fragment } from "./reading";
 import { ReviewPanel } from "./ReviewPanel";
@@ -59,7 +65,7 @@ import type { PdfTextPage, PdfProgress } from "./pdf";
 const PdfPageView = lazy(() => import("./PdfPageView"));
 import * as store from "./store";
 
-type Page = "library" | "vocabulary" | "children" | "settings";
+type Page = "library" | "vocabulary" | "children" | "settings" | "groups";
 type Capability = {
   configured: boolean;
   pairs: { source: string; targets: string[] }[];
@@ -173,6 +179,11 @@ export default function App() {
   const [words, setWords] = useState<Word[]>([]);
   const [children, setChildren] = useState<Child[]>([]);
   const [cloud, setCloud] = useState(false);
+  const [syncStatus, setSyncStatus] = useState("Đã đồng bộ");
+  const [importGroup, setImportGroup] = useState<string | null>(null);
+  const [groupsVersion,setGroupsVersion]=useState(0);
+  const loadingSequence = useRef(0);
+  const sessionId = useRef("");
   const [email, setEmail] = useState("");
   const [sessionEmail, setSessionEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -202,37 +213,56 @@ export default function App() {
   );
   const active = books.find((b) => b.id === selected);
   const notify = (s: string) => setMessage(s);
-  async function load(useCloud: boolean) {
-    setReady(false);
+  async function load(useCloud: boolean, quiet = false, resume = false) {
+    const sequence=++loadingSequence.current;
+    if(!quiet)setReady(false);
     try {
-      const [b, w, c] = await Promise.all([
-        store.listBooks(useCloud),
-        store.getCollection<Word>("vocabulary", useCloud),
-        store.getCollection<Child>("children", useCloud),
-      ]);
-      setBooks(b);
-      setWords(w);
-      setChildren(c);
-    } catch (e) {
-      notify(errorText(e));
-    } finally {
-      setReady(true);
-    }
+      const [b,w,c]=await Promise.all([store.listBooks(useCloud),store.getCollection<Word>("vocabulary",useCloud),store.getCollection<Child>("children",useCloud)]);
+      if(sequence!==loadingSequence.current)return;
+      setBooks(b);setWords(w);setChildren(c);
+      if(resume) {
+        const last=await store.lastReadBook(useCloud);
+        if(sequence!==loadingSequence.current)return;
+        const next=b.find(book=>book.id===last) || (!last ? b.find(book=>book.position.chapter||book.position.paragraph||book.position.offset) : undefined);
+        if(next)setSelected(next.id);
+      } else setSelected(id=>id&&b.some(book=>book.id===id)?id:null);
+    } catch(e){if(sequence===loadingSequence.current)notify(errorText(e));}
+    finally{if(sequence===loadingSequence.current&&!quiet)setReady(true);}
   }
-  useEffect(() => {
-    void load(false);
-    if (store.supabase) {
-      const { data } = store.supabase.auth.onAuthStateChange(
-        (_event, session) => {
-          setSessionEmail(session?.user.email || "");
-          if (!session) {
-            setCloud(false);
-          }
-        },
-      );
-      return () => data.subscription.unsubscribe();
-    }
-  }, []);
+  useEffect(()=>{
+    if(!store.supabase){void load(false,false,true);return;}
+    const {data}=store.supabase.auth.onAuthStateChange((event,session)=>{
+      setSessionEmail(session?.user.email||"");
+      if(event!=="INITIAL_SESSION"&&event!=="SIGNED_IN"&&event!=="SIGNED_OUT")return;
+      const uid=session?.user.id||"";if(event!=="INITIAL_SESSION"&&uid===sessionId.current)return;sessionId.current=uid;
+      setTimeout(()=>{setCloud(!!session);void load(!!session,false,true);},0);
+    });
+    return()=>data.subscription.unsubscribe();
+  },[]);
+  useEffect(()=>{
+    if(!cloud)return;
+    let running=false;
+    const sync=async()=>{
+      if(running||!navigator.onLine||document.visibilityState==="hidden")return;running=true;
+      try {await store.flushProgress().catch(()=>{});await load(true,true);setSyncStatus(await store.hasPendingProgress()?"Chờ đồng bộ":"Đã đồng bộ");}
+      catch {setSyncStatus("Đã giữ trên thiết bị · chờ đồng bộ");}
+      finally{running=false;}
+    };
+    const timer=setInterval(()=>void sync(),10000);const focus=()=>void sync();
+    window.addEventListener("online",focus);window.addEventListener("focus",focus);document.addEventListener("visibilitychange",focus);
+    return()=>{clearInterval(timer);window.removeEventListener("online",focus);window.removeEventListener("focus",focus);document.removeEventListener("visibilitychange",focus);};
+  },[cloud]);
+  function openBook(id:string) {
+    const book=books.find(b=>b.id===id);if(!book)return;
+    setSelected(id);void store.saveProgress(book,book.position,cloud).then(()=>setSyncStatus("Đã đồng bộ")).catch(()=>setSyncStatus("Chờ đồng bộ"));
+  }
+  async function saveReadingPosition(position:Book['position']) {
+    const book=books.find(b=>b.id===selected);if(!book)return;
+    setBooks(current=>current.map(b=>b.id===book.id?{...b,position}:b));
+    setSyncStatus(cloud?"Đang đồng bộ…":"Đã lưu trên thiết bị");
+    try {await store.saveProgress(book,position,cloud);setSyncStatus(cloud ? await store.hasPendingProgress()?"Chờ đồng bộ":"Đã đồng bộ" : "Đã lưu trên thiết bị");}
+    catch{setSyncStatus("Đã giữ trên thiết bị · chờ đồng bộ");}
+  }
   useEffect(() => {
     const yes = () => setOnline(true),
       no = () => setOnline(false);
@@ -266,7 +296,7 @@ export default function App() {
   }, [message]);
   async function updateBook(book: Book) {
     await store.saveBook(book, cloud);
-    setBooks((prev) => prev.map((b) => (b.id === book.id ? book : b)));
+    setBooks((prev) => prev.map((b) => (b.id === book.id ? {...book,position:b.position} : b)));
   }
   async function saveWords(values: Word[]) {
     await store.saveCollection("vocabulary", values, cloud);
@@ -326,6 +356,7 @@ export default function App() {
       for (const b of data.books as Book[]) {
         if (currentIds.has(b.id)) continue;
         await store.saveBook(b, cloud);
+        if(cloud)await store.saveProgress(b,b.position,true);
         const original = data.originals?.[b.id];
         if (original)
           await store.saveOriginal(
@@ -461,6 +492,7 @@ export default function App() {
     { id: "library" as Page, label: "Thư viện của tôi", icon: Library },
     { id: "vocabulary" as Page, label: "Sổ từ vựng", icon: GraduationCap },
     { id: "children" as Page, label: "Góc trẻ em", icon: BookOpen },
+    { id: "groups" as Page, label: "Nhóm đọc & cloud", icon: Cloud },
     { id: "settings" as Page, label: "Cài đặt & kết nối", icon: Settings },
   ];
   const filtered = books.filter(
@@ -552,7 +584,7 @@ export default function App() {
             <span className="connection">
               {online ? <span className="status-dot" /> : <WifiOff size={14} />}{" "}
               {cloud
-                ? "Đã kết nối tài khoản"
+                ? syncStatus
                 : online
                   ? "Lưu trên thiết bị"
                   : "Ngoại tuyến"}
@@ -579,6 +611,8 @@ export default function App() {
             cap={cap}
             onUpdate={updateBook}
             onBack={() => setSelected(null)}
+            books={books} words={words} onOpenBook={openBook} onProgress={saveReadingPosition}
+            onGroups={() => {setSelected(null);setPage("groups");}}
             onWord={async (word) => {
               await saveWords(mergeWord(words, word));
               notify("Đã lưu từ vào sổ từ vựng.");
@@ -623,7 +657,7 @@ export default function App() {
                     <button
                       onClick={() =>
                         lastBook
-                          ? setSelected(lastBook.id)
+                          ? openBook(lastBook.id)
                           : setImportOpen(true)
                       }
                     >
@@ -763,7 +797,7 @@ export default function App() {
                           <button
                             className="book-card"
                             key={b.id}
-                            onClick={() => setSelected(b.id)}
+                            onClick={() => openBook(b.id)}
                           >
                             <div className={`book-cover cover-${i % 5}`}>
                               <div className="cover-top">
@@ -1015,6 +1049,7 @@ export default function App() {
                 notify={notify}
               />
             )}
+            {page === "groups" && <GroupsPanel refreshVersion={groupsVersion} cloud={cloud} books={books} notify={notify} onLogin={()=>setPage("settings")} onRead={openBook} onUpload={gid=>{setImportGroup(gid);setImportOpen(true);}} onRefresh={()=>load(true,true)} />}
             {page === "settings" && (
               <>
                 <div className="page-heading">
@@ -1106,6 +1141,7 @@ export default function App() {
                       </form>
                     )}
                   </section>
+                  {sessionEmail && <section className="panel"><h2>Đồng bộ dữ liệu thiết bị</h2><p>Đưa sách, tệp gốc, từ vựng và hồ sơ đang lưu trên trình duyệt này vào tài khoản. Không xóa bản trên thiết bị; sách trùng trong tài khoản được dùng lại.</p><p role="status">{syncStatus}</p><div className="row"><button disabled={busy} className="primary" onClick={async()=>{setBusy(true);try{setCloud(true);const last=await store.migrateDeviceData((done,total)=>setSyncStatus(`Đang đưa sách lên cloud ${done}/${total}…`));await load(true);if(last)setSelected(last);setSyncStatus("Đã đồng bộ");notify("Đã đưa dữ liệu thiết bị lên cloud.");}catch(e){notify(errorText(e));}finally{setBusy(false);}}}>Đưa dữ liệu thiết bị lên cloud</button><button onClick={()=>{setSelected(null);setPage("groups");}}>Mở nhóm đọc</button></div></section>}
                   <section className="panel">
                     <h2>
                       <Languages size={21} /> Dịch tài liệu
@@ -1196,8 +1232,11 @@ export default function App() {
       )}
       {importOpen && (
         <ImportModal
-          onClose={() => setImportOpen(false)}
+          onClose={() => {setImportOpen(false);setImportGroup(null);}}
           onImport={async (book, file) => {
+            if(importGroup) {
+              await importGroupBook(importGroup,book,file);await load(true,true);setGroupsVersion(v=>v+1);setImportOpen(false);setImportGroup(null);notify("Đã thêm sách vào nhóm; tệp trùng được dùng lại.");return;
+            }
             if (
               books.some(
                 (b) => b.hash === book.hash && b.language === book.language &&
@@ -1485,9 +1524,11 @@ function Reader({
   onBack,
   onWord,
   notify,
-  onDelete,
+  onDelete,books,words,onOpenBook,onProgress,onGroups,
 }: {
   book: Book;
+  books: Book[]; words: Word[]; onOpenBook:(id:string)=>void;
+  onProgress:(position:Book['position'])=>Promise<void>;onGroups:()=>void;
   cloud: boolean;
   cap: Capability | null;
   onUpdate: (b: Book) => Promise<void>;
@@ -1530,10 +1571,26 @@ function Reader({
   const [rangeStart, setRangeStart] = useState(book.position.chapter);
   const [rangeEnd, setRangeEnd] = useState(Math.min(book.chapters.length, book.position.chapter + 2));
   const [activeParagraph, setActiveParagraph] = useState("");
-  const [navigating, setNavigating] = useState(false);
   const paper = useRef<HTMLDivElement | null>(null);
   const sentinel = useRef<HTMLDivElement | null>(null);
   const translationPanel = useRef<HTMLDetailsElement | null>(null);
+  const [wordHit,setWordHit]=useState<HitWord|null>(null);
+  const wordRef=useRef<HitWord|null>(null),wordPinned=useRef(false),hoverTimer=useRef<ReturnType<typeof setTimeout>|null>(null),hideTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+  const touch=useRef<{x:number;y:number;at:number}|null>(null),skipClick=useRef(0);
+  const [floatingTools,setFloatingTools]=useState(false),[toolsOffscreen,setToolsOffscreen]=useState(false),[controlsHeight,setControlsHeight]=useState(0);
+  const controls=useRef<HTMLDivElement|null>(null),controlSlot=useRef<HTMLDivElement|null>(null);
+  function closeLookup(){setWordHit(null);wordRef.current=null;wordPinned.current=false;if(hoverTimer.current)clearTimeout(hoverTimer.current);if(hideTimer.current)clearTimeout(hideTimer.current);}
+  function delayCloseLookup(){if(wordPinned.current)return;if(hideTimer.current)clearTimeout(hideTimer.current);hideTimer.current=setTimeout(closeLookup,350);}
+  function showWord(word:HitWord,pinned=false){if(hideTimer.current)clearTimeout(hideTimer.current);wordPinned.current=pinned;wordRef.current=word;setWordHit(word);}
+  useEffect(()=>{document.body.classList.add("reading-mode");return()=>{document.body.classList.remove("reading-mode");if(hoverTimer.current)clearTimeout(hoverTimer.current);if(hideTimer.current)clearTimeout(hideTimer.current);};},[]);
+  useEffect(()=>{
+    if(!controlSlot.current)return;
+    const observer=new IntersectionObserver(entries=>setToolsOffscreen(!entries[0].isIntersecting),{threshold:0});observer.observe(controlSlot.current);return()=>observer.disconnect();
+  },[]);
+  useEffect(()=>{
+    if(!controls.current||floatingTools)return;
+    const resize=new ResizeObserver(()=>setControlsHeight(controls.current?.offsetHeight||0));resize.observe(controls.current);return()=>resize.disconnect();
+  },[floatingTools]);
   const fragments: Fragment[] = readMode === "paged" ? pages[Math.min(pageIndex, pages.length - 1)].fragments :
     book.chapters.slice(rangeStart, rangeEnd).flatMap((c, ci) => c.paragraphs.map((p, pi) => ({ chapter: rangeStart + ci, paragraph: pi, start: 0, end: p.text.length })));
   const latest = useRef(book),
@@ -1583,25 +1640,29 @@ function Reader({
     }, { rootMargin: "600px" });
     observer.observe(sentinel.current); return () => observer.disconnect();
   }, [readMode, rangeEnd, book.chapters.length]);
-  useEffect(() => {
-    const position = latest.current.position;
-    if (!readerReady || !(position.chapter || position.paragraph || position.offset)) return;
-    const handle = requestAnimationFrame(() => document.getElementById(`p-${latest.current.chapters[position.chapter]?.paragraphs[position.paragraph]?.id}`)?.scrollIntoView({ block: "center", behavior: "instant" }));
-    return () => cancelAnimationFrame(handle);
-  }, [readerReady, readMode]);
+  const readingProgress=useReadingProgress({book,paper,ready:readerReady,onProgress:async position=>{latest.current={...latest.current,position};await onProgress(position);},onRemote:position=>{
+    const index=pageForPosition(pages,position);setPageIndex(index);setChapter(position.chapter);setRangeStart(position.chapter);setRangeEnd(Math.min(book.chapters.length,position.chapter+2));
+  }});
+  useEffect(()=>{
+    const key=(e:KeyboardEvent)=>{
+      if(readMode!=="paged"||e.altKey||e.ctrlKey||e.metaKey||document.querySelector('.overlay')||e.target instanceof HTMLElement&&e.target.closest('input,textarea,select,[contenteditable=true],.word-popover,.reader-flyout'))return;
+      if(e.key==="ArrowRight"){e.preventDefault();void goPage(pageIndex+1);}if(e.key==="ArrowLeft"){e.preventDefault();void goPage(pageIndex-1);}
+      if(e.key==="Escape"){closeLookup();setFloatingTools(false);}
+    };window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key);
+  },[readMode,pageIndex,translating,pages]);
   async function goPage(index: number) {
-    if (index < 0 || index >= pages.length || navigating) return;
+    if (index < 0 || index >= pages.length || translating) return;
     const first = pages[index].fragments[0];
-    setPageIndex(index); setChapter(first.chapter); setActiveParagraph(""); setNavigating(true);
-    try { await update({ ...latest.current, position: { chapter: first.chapter, paragraph: first.paragraph, offset: first.start } }); }
-    catch (e) { notify(errorText(e)); }
-    finally { setNavigating(false); }
+    setPageIndex(index); setChapter(first.chapter); setActiveParagraph("");
+    closeLookup();
+    void readingProgress.record({ chapter:first.chapter,paragraph:first.paragraph,offset:first.start }).catch(e=>notify(errorText(e)));
     paper.current?.scrollIntoView({ block: "start", behavior: "instant" });
   }
   async function goChapter(ci: number) {
     if (readMode === "paged") { await goPage(pages.findIndex(p => p.chapter === ci)); return; }
     setChapter(ci); setRangeStart(ci); setRangeEnd(Math.min(book.chapters.length, ci + 2));
-    try { await update({ ...latest.current, position: { chapter: ci, paragraph: 0, offset: 0 } }); }
+    closeLookup();
+    try { await readingProgress.record({ chapter:ci,paragraph:0,offset:0 }); }
     catch (e) { notify(errorText(e)); }
     requestAnimationFrame(() => paper.current?.scrollIntoView({ block: "start", behavior: "instant" }));
   }
@@ -1621,7 +1682,7 @@ function Reader({
   }
   async function markPosition(i: number, ci = chapter, offset = 0) {
     try {
-      await update({ ...latest.current, position: { chapter: ci, paragraph: i, offset } });
+      await readingProgress.record({chapter:ci,paragraph:i,offset});
     } catch (e) {
       notify(errorText(e));
     }
@@ -1741,6 +1802,14 @@ function Reader({
       {sourcePdf && <Modal title={`PDF gốc · trang ${book.chapters[chapter].sourcePage}`} onClose={() => setSourcePdf(null)}>
         <Suspense fallback={<p>Đang mở PDF…</p>}><PdfPageView file={sourcePdf} page={book.chapters[chapter].sourcePage!} /></Suspense>
       </Modal>}
+      <ReaderDock book={book} books={books} words={words} chapter={chapter} onChapter={i=>void goChapter(i)} onBook={onOpenBook} onGroups={onGroups} />
+      {wordHit&&<WordPopover word={wordHit} target={wordHit.source===book.language?target:book.language} onClose={closeLookup} onEnter={()=>{if(hideTimer.current)clearTimeout(hideTimer.current);}} onLeave={delayCloseLookup} onSave={async meaning=>{
+        const paragraph=book.chapters.flatMap(c=>c.paragraphs).find(p=>p.id===wordHit.paragraphId)!;
+        await onWord({id:id(),term:wordHit.term,meaning,language:wordHit.source,status:"new",createdAt:new Date().toISOString(),contexts:[{bookId:book.id,bookTitle:book.title,paragraphId:paragraph.id,sentence:wordHit.source===book.language?paragraph.text:paragraph.translations[wordHit.source]?.text||paragraph.text}]});
+      }} />}
+      {(toolsOffscreen||floatingTools)&&<button className="show-reader-tools" aria-expanded={floatingTools} onClick={()=>setFloatingTools(v=>!v)}>{floatingTools?"Ẩn công cụ":"Hiện công cụ"}</button>}
+      <div ref={controlSlot} className="reader-control-slot" style={floatingTools?{height:controlsHeight}:undefined}>
+      <div ref={controls} className={`reader-controls ${floatingTools?"tools-floating":""}`}>
       <div className="reader-header">
         <button
           onClick={() => {
@@ -1940,6 +2009,7 @@ function Reader({
           giọng chưa tải sẵn.
         </small>
       </details>
+      </div></div>
       <div className="reader-subhead">
         <h2>{book.chapters[chapter].title}</h2>
         <label className="search">
@@ -1952,7 +2022,27 @@ function Reader({
           />
         </label>
       </div>
-      <div ref={paper} className={`reading-paper paragraphs layout-${layout} mode-${readMode}`} style={{ fontSize: font }}>
+      <div ref={paper} className={`reading-paper paragraphs layout-${layout} mode-${readMode}`} style={{ fontSize: font }} tabIndex={0} aria-label="Trang sách · bấm lề trái hoặc phải để chuyển trang" onPointerDown={e=>{if(e.pointerType==="touch")touch.current={x:e.clientX,y:e.clientY,at:Date.now()};}}
+        onPointerCancel={()=>{touch.current=null;}}
+        onPointerUp={e=>{if(e.pointerType!=="touch"||!touch.current)return;const start=touch.current;touch.current=null;const dx=e.clientX-start.x,dy=e.clientY-start.y;
+          if(readMode==="paged"&&Math.abs(dx)>55&&Math.abs(dx)>Math.abs(dy)*1.4&&Date.now()-start.at<1500){skipClick.current=Date.now()+500;e.preventDefault();void goPage(pageIndex+(dx<0?1:-1));}
+        }}
+        onPointerMove={e=>{
+          if(e.pointerType!=="mouse"||wordPinned.current||!getSelection()?.isCollapsed)return;
+          const word=hitWord(e.clientX,e.clientY,e.currentTarget);
+          if(!word){if(hoverTimer.current)clearTimeout(hoverTimer.current);delayCloseLookup();return;}
+          if(hideTimer.current)clearTimeout(hideTimer.current);
+          if(wordRef.current?.term===word.term&&wordRef.current.paragraphId===word.paragraphId)return;
+          if(hoverTimer.current)clearTimeout(hoverTimer.current);
+          hoverTimer.current=setTimeout(()=>showWord(word),500);
+        }}
+        onPointerLeave={delayCloseLookup}
+        onClick={e=>{
+          if(Date.now()<skipClick.current||!getSelection()?.isCollapsed||(e.target as HTMLElement).closest('button,a,input,textarea,select,.paragraph-actions'))return;
+          const word=hitWord(e.clientX,e.clientY,e.currentTarget);if(word){showWord(word,true);return;}
+          closeLookup();if(readMode!=="paged")return;
+          const box=e.currentTarget.getBoundingClientRect();void goPage(pageIndex+(e.clientX<box.left+box.width/2?-1:1));
+        }}>
         {readMode === "continuous" && rangeStart > 0 && <button onClick={() => setRangeStart(start => Math.max(0, start - 2))}>Nạp chương trước</button>}
         {fragments.map((fragment, fi) => {
           const ci = fragment.chapter, i = fragment.paragraph;
@@ -1969,7 +2059,7 @@ function Reader({
             return null;
           return (
             <article
-              data-chapter={ci} data-paragraph={i}
+              data-chapter={ci} data-paragraph={i} data-paragraph-id={p.id} data-fragment-start={fragment.start} data-fragment-end={fragment.end}
               onClick={() => setActiveParagraph(p.id)}
               tabIndex={0}
               id={`p-${p.id}`}
@@ -1983,13 +2073,13 @@ function Reader({
                 onTouchEnd={() => capture(p)}
               >
                 {layout !== "translation" && (
-                  <p lang={book.language} style={fragment.start ? { textIndent: 0 } : undefined}>{displayText}</p>
+                  <p lang={book.language} data-reading-source data-lookup-lang={book.language} style={fragment.start ? { textIndent: 0 } : undefined}>{displayText}</p>
                 )}
                 {layout !== "original" && (
                   <div className="translated" lang={target}>
                     {p.translations[target]?.text ? (
                       <>
-                        <p>{translatedText}</p>
+                        <p data-lookup-lang={target}>{translatedText}</p>
                         <span className="translation-label">
                           {p.translations[target]!.provider === "manual"
                             ? "Đã sửa thủ công"
@@ -2076,15 +2166,7 @@ function Reader({
         })}
       </div>
       {readMode === "continuous" && <div ref={sentinel} className="reading-sentinel" role="status">{rangeEnd < book.chapters.length ? "Đang nối phần tiếp theo…" : "Đã đến cuối sách."}</div>}
-      <nav className="reader-bottom" aria-label="Chuyển trang đọc">
-        <button disabled={readMode === "paged" && (pageIndex === 0 || translating || navigating)} onClick={() => readMode === "paged" ? void goPage(pageIndex - 1) : window.scrollBy({ top: -window.innerHeight * 0.85, behavior: "smooth" })}>
-          <ChevronLeft size={17} />{readMode === "paged" ? "Trang trước" : "Lùi màn hình"}
-        </button>
-        <span>{readMode === "paged" ? `Trang ${pageIndex + 1}/${pages.length}` : "Đọc liên tục"} · {Math.floor((Date.now() - readingStart.current) / 60000)} phút</span>
-        <button disabled={readMode === "paged" && (pageIndex >= pages.length - 1 || translating || navigating)} onClick={() => readMode === "paged" ? void goPage(pageIndex + 1) : window.scrollBy({ top: window.innerHeight * 0.85, behavior: "smooth" })}>
-          {readMode === "paged" ? "Trang sau" : "Tiếp màn hình"}<ChevronRight size={17} />
-        </button>
-      </nav>
+      <div className="reader-page-status" aria-live="polite">{readMode==="paged"?`Trang ${pageIndex+1}/${pages.length} · bấm lề trái/phải hoặc vuốt để đổi trang`:"Đọc liên tục · tự lưu vị trí"}</div>
       {selection && (
         <Modal
           title="Từ & cụm từ trong ngữ cảnh"

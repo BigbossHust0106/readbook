@@ -54,7 +54,7 @@ test("import, manual translation, locked edit, note, position, vocabulary and pe
   await page.getByRole("button", { name: "Lưu vị trí đoạn 2" }).click();
   await expect(page.locator(".paragraph").nth(1)).toHaveClass(/current/);
   await page.reload();
-  await page.getByRole("button", { name: /Sách kiểm thử/ }).click();
+  await expect(page.locator(".reading-paper")).toBeVisible();
   await expect(page.locator(".translated").first()).toContainText(
     "Hello world.",
   );

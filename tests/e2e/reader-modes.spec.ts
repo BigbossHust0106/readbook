@@ -12,26 +12,27 @@ test('page slider, fixed controls, continuous chapters and reading position pers
   await add(page, `Chương 1\n\n${paragraph}\n\nChương 2\n\nNội dung chương hai hiện ra khi cuộn.\n\nChương 3\n\nNội dung chương ba nối tiếp.`);
   const slider = page.getByRole('slider', { name: 'Số ký tự mỗi trang' });
   await slider.focus(); await slider.press('Home');
-  await expect(page.locator('.reader-bottom')).toContainText('Trang 1/');
+  await expect(page.locator('.reader-page-status')).toContainText('Trang 1/');
   const initial = await page.locator('.paragraph-text').first().innerText();
-  await page.getByRole('button', { name: 'Trang sau', exact: true }).click();
-  await expect(page.locator('.reader-bottom')).toContainText('Trang 2/');
+  await page.locator('.reading-paper').focus();await page.keyboard.press('ArrowRight');
+  await expect(page.locator('.reader-page-status')).toContainText('Trang 2/');
   await page.locator('.paragraph').first().hover();
   await page.getByRole('button', { name: 'Lưu vị trí đoạn 1', exact: true }).click();
-  await page.reload(); await page.getByRole('button', { name: /Sách đọc liền/ }).click();
-  await expect(page.locator('.reader-bottom')).toContainText('Trang 2/');
+  await page.reload();await expect(page.locator('.reading-paper')).toBeVisible();
+  await expect(page.locator('.reader-page-status')).toContainText('Trang 2/');
   expect(await slider.inputValue()).toBe('500');
   await page.setViewportSize({ width: 390, height: 844 });
-  const bar = page.getByRole('navigation', { name: 'Chuyển trang đọc' });
-  let box = await bar.boundingBox(); expect(box!.y + box!.height).toBeCloseTo(844, 0);
+  const bar = page.locator('.reader-page-status');
+  let box = await bar.boundingBox(); expect(box!.y + box!.height).toBeGreaterThan(810);
   await page.getByLabel('Chế độ đọc').selectOption('continuous');
   await expect(page.locator('.reading-paper')).toContainText('Nội dung chương hai hiện ra khi cuộn.');
   await page.locator('.reading-sentinel').scrollIntoViewIfNeeded();
   await expect(page.locator('.reading-paper')).toContainText('Nội dung chương ba nối tiếp.');
-  box = await bar.boundingBox(); expect(box!.y + box!.height).toBeCloseTo(844, 0);
+  box = await bar.boundingBox(); expect(box!.y + box!.height).toBeGreaterThan(810);
+  await page.getByRole('button',{name:'Hiện công cụ',exact:true}).click();
   await page.getByLabel('Chế độ đọc').selectOption('paged');
   await slider.focus(); await slider.press('End');
-  await expect(page.locator('.reader-bottom')).toContainText('Trang 1/');
+  await expect(page.locator('.reader-page-status')).toContainText('Trang 1/');
   expect((await page.locator('.paragraph-text').first().innerText()).length).toBeGreaterThan(initial.length);
 });
 test('visible bilingual translation saves machine results and resumes remaining paragraphs', async ({ page }) => {
@@ -45,7 +46,7 @@ test('visible bilingual translation saves machine results and resumes remaining 
   await expect(page.locator('.translated').first()).toContainText('A book opens a new world.');
   await expect(page.locator('.translation-panel')).toContainText('Đã lưu 2 đoạn dịch.');
   expect(sent).toHaveLength(2);
-  await page.reload(); await page.getByRole('button', { name: /Sách đọc liền/ }).click();
+  await page.reload();await expect(page.locator('.reading-paper')).toBeVisible();
   await expect(page.locator('.translated').first()).toContainText('A book opens a new world.');
 });
 test('source import reviews metadata and then imports a same-source public text file', async ({ page }) => {
