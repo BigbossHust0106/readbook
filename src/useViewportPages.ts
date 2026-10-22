@@ -1,3 +1,4 @@
+import {loadReaderFont} from './readerAppearance';
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import type { Book, Lang } from './model';
 import { translatedFragment, type ReadingPage, type Fragment } from './reading';
@@ -141,7 +142,7 @@ export function useViewportPages({ book, position, frame, enabled, layout, targe
       if (cancelled || done[direction]) return Promise.resolve(null);
       return new Promise(resolve => { waiting[direction].push(page => { publish(); resolve(page); }); schedule(true); });
     } };
-    void document.fonts.ready.then(() => { if (!cancelled) schedule(true); });
+    void loadReaderFont(fontFamily,font).catch(()=>{}).then(() => document.fonts.ready).then(() => { if (!cancelled) schedule(true); });
     return () => {
       cancelled = true; clearSchedule(); roots.forEach(root => root.remove()); work.current = null;
       waiting.forward.splice(0).forEach(resolve => resolve(null)); waiting.backward.splice(0).forEach(resolve => resolve(null));

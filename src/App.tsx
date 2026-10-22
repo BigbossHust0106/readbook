@@ -1,3 +1,4 @@
+import {readerFonts,readerThemes,readerFontFamilies} from "./readerAppearance";
 import {usePageTurn} from "./usePageTurn";
 import {Modal} from "./Modal";
 import {InstallAppContent,useAppInstall} from "./InstallApp";
@@ -1547,7 +1548,7 @@ function Reader({
   const [translationImport,setTranslationImport]=useState(false);
   const [showPageButtons,setShowPageButtons]=useState(true);
   const [fontFamily,setFontFamily]=useState('noto'),[lineHeight,setLineHeight]=useState(1.85);
-  const fonts:Record<string,string>={noto:'"Noto Sans", sans-serif',serif:'Georgia, "Times New Roman", "Noto Sans", serif',system:'system-ui, "Noto Sans", sans-serif'};
+  const fonts=readerFontFamilies;
   const [readerReady, setReaderReady] = useState(false);
   const [pagePosition, setPagePosition] = useState(book.position);
   const [turning, setTurning] = useState(false);
@@ -1621,7 +1622,7 @@ function Reader({
         setSpeechVolume(Math.max(0,Math.min(1,Number(s.speechVolume) || (s.speechVolume===0?0:1))));setSpeechPitch(Math.max(.5,Math.min(2,Number(s.speechPitch)||1)));setSleepMinutes(Math.max(0,Math.min(1440,Number(s.sleepMinutes)||0)));
         setShowPageButtons(s.showPageButtons!==false);
         setSpeechProvider(s.speechProvider==="device"?"device":"google");setSpeechVoice(s.speechVoice||"");setSpeechRate(Math.max(.6,Math.min(1.5,Number(s.speechRate)||1)));
-        setTheme(s.theme);
+        setTheme(readerThemes.some(theme=>theme.id===s.theme)?s.theme:'light');
         setLayout(s.layout);
         setReadMode(s.readMode === "continuous" ? "continuous" : "paged");
         setFontFamily(fonts[s.fontFamily]?s.fontFamily:'noto');setLineHeight(Math.max(1.3,Math.min(2.5,Number(s.lineHeight)||1.85)));
@@ -1821,7 +1822,7 @@ function Reader({
   },[advancePending,paginationBusy,turning,translating,pages]);
   function selectedPosition(){const ci=book.chapters.findIndex(c=>c.paragraphs.some(p=>p.id===wordHit?.paragraphId));const pi=book.chapters[ci]?.paragraphs.findIndex(p=>p.id===wordHit?.paragraphId)??0;return {chapter:Math.max(0,ci),paragraph:pi,offset:wordHit?.offset||0};}
   return (
-    <div className={`reader theme-${theme} ${readMode==='paged'?'is-paged':''} ${paginationBusy?'pagination-pending':''}`}>
+    <div className={`reader ${theme==='midnight'?'theme-dark ':''}theme-${theme} ${readMode==='paged'?'is-paged':''} ${paginationBusy?'pagination-pending':''}`}>
       <button className="reader-mobile-menu" aria-label="Mở menu" onClick={()=>{closeLookup();onMenu();}}><Menu/></button>
       {readMode==='paged'&&<div className="paged-title"><strong>{book.title}</strong><small>{book.chapters[chapter].title}</small></div>}
       {sourcePdf && <Modal title={`PDF gốc · trang ${book.chapters[chapter].sourcePage}`} onClose={() => setSourcePdf(null)}>
@@ -1937,7 +1938,7 @@ function Reader({
         <label className="checkbox"><input type="checkbox" checked={showPageButtons} onChange={e=>setShowPageButtons(e.target.checked)}/>Hiện nút chuyển trang</label>
         <label>Cỡ chữ<input aria-label="Cỡ chữ" type="number" min={8} max={72} step={1} value={fontDraft} onChange={e=>{setFontDraft(e.target.value);const next=Number(e.target.value);if(next>=8&&next<=72)setFont(next);}} onBlur={()=>{const next=Math.max(8,Math.min(72,Number(fontDraft)||font));setFont(next);setFontDraft(String(next));}}/></label>
         <button onClick={()=>setShowBookmarks(true)}>Dấu trang</button><button onClick={()=>setShowBookSearch(true)}>Tìm trong sách</button>
-        <label>Phông chữ<select aria-label="Phông chữ đọc" value={fontFamily} onChange={e=>setFontFamily(e.target.value)}><option value="noto">Noto Sans</option><option value="serif">Chữ có chân</option><option value="system">Phông hệ thống</option></select></label>
+        <label>Phông chữ<select aria-label="Phông chữ đọc" value={fontFamily} onChange={e=>setFontFamily(e.target.value)}>{readerFonts.map(font=><option value={font.id} key={font.id}>{font.label}</option>)}</select></label>
         <label>Tốc độ đọc<select aria-label="Tốc độ đọc" value={speechRate} onChange={e=>setSpeechRate(Number(e.target.value))}>{[.6,.8,1,1.2,1.5].map(v=><option key={v} value={v}>{v}×</option>)}</select></label>
         <label>Nguồn giọng đọc<select aria-label="Nguồn giọng đọc" value={speechProvider} onChange={e=>{stopReading();setSpeechProvider(e.target.value as SpeechProvider);}}><option value="google">Google trực tuyến (gửi văn bản tới Google)</option><option value="device">Giọng thiết bị</option></select></label>
         {speechProvider==='device'&&<label>Giọng thiết bị<select aria-label="Giọng thiết bị" value={speechVoice} onChange={e=>{stopReading();setSpeechVoice(e.target.value);}}><option value="">Tự chọn đúng ngôn ngữ sách</option>{speech.voices.filter(v=>v.lang.toLowerCase().startsWith(book.language)).map(v=><option value={v.voiceURI} key={v.voiceURI}>{v.name} · {v.lang}</option>)}</select></label>}
@@ -1952,9 +1953,7 @@ function Reader({
             value={theme}
             onChange={(e) => setTheme(e.target.value)}
           >
-            <option value="light">Sáng</option>
-            <option value="sepia">Sepia</option>
-            <option value="dark">Tối</option>
+            {readerThemes.map(theme=><option value={theme.id} key={theme.id}>{theme.label}</option>)}
           </select>
         </label>
         <label>
@@ -1977,6 +1976,10 @@ function Reader({
           </select>
         </label>
       </div>
+      <section className="reader-appearance" aria-label="Mẫu phông chữ và màu giấy">
+        <div className="paper-swatches" role="group" aria-label="Chọn nhanh màu giấy">{readerThemes.map(choice=><button type="button" key={choice.id} aria-label={`Màu giấy ${choice.label}`} aria-pressed={theme===choice.id} title={choice.label} style={{background:choice.paper,color:choice.ink}} onClick={()=>setTheme(choice.id)}><span aria-hidden="true">Aa</span>{theme===choice.id&&<Check size={13}/>}</button>)}</div>
+        <p className="reader-font-preview" style={{fontFamily:fonts[fontFamily],background:readerThemes.find(choice=>choice.id===theme)?.paper,color:readerThemes.find(choice=>choice.id===theme)?.ink}}>Những trang sách mở ra một thế giới. <span>Tiếng Việt · ă â ê ô ơ ư đ</span></p>
+      </section>
       <details ref={translationPanel} className="translation-panel">
         <summary>
           <Languages size={17} /> Dịch & nghe{" "}
