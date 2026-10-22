@@ -164,3 +164,16 @@ Trong nhóm chọn **Thêm sách vào nhóm**, rồi kéo tệp vào cửa sổ 
 
 
 Khi thêm sách, tên dạng **ABC - XYZ.pdf** tự điền **Tên sách: ABC**, **Tác giả: XYZ**. Áp dụng cho chọn tệp, kéo thả và tên nhập trực tiếp (tách khi rời ô tên). Nếu có nhiều dấu ` - `, dùng dấu cuối để giữ phụ đề ở phần tên sách. Không tách dấu nối liền như `Jean-Paul`. Bạn có thể sửa hai ô trước khi lưu; đổi tệp giữ các giá trị đã sửa tay.
+
+## Phân trang ưu tiên và nghe đoạn văn — 22/10/2026
+
+Chế độ lật trang đo trang tại vị trí đang đọc trước, cho trang đó hiển thị rồi chuẩn bị thêm hai trang phía sau. Phần còn lại được đo dần cả tiến và lùi trong các đợt nhàn rỗi khoảng 4 ms; yêu cầu lật tới trang chưa chuẩn bị được ưu tiên. Trình đọc giữ vị trí bằng chương/đoạn/offset, nên trang không nhảy khi phần nền bổ sung các trang trước đó. Tổng số trang hiển thị `…` đến khi tính xong. Đổi cỡ chữ, phông, khoảng dòng, chiều rộng, ngân sách ký tự hoặc xoay màn hình hủy tác vụ cũ và đo lại từ vị trí hiện tại. Ba bố cục hoàn chỉnh gần nhất được giữ trong RAM; tiến độ/ghi chú/dấu trang và lần đồng bộ có cùng văn bản không làm chia lại trang. Vẫn cần tải tài liệu sách từ bộ nhớ/cloud trước khi đo bố cục, và cần giữ tab mở để phần nền chạy.
+
+**Hiện công cụ → Hiện nút chuyển trang** là công tắc riêng, lưu trên thiết bị, áp dụng cho cả điện thoại và máy tính. Ẩn các nút không thay đổi ngân sách ký tự hay kích thước trang; phím trái/phải, chạm hai nửa trang và vuốt vẫn hoạt động.
+
+Bấm biểu tượng loa trên thanh đầu để **Nghe trang đang đọc**, hoặc loa **Nghe đoạn N** trong thao tác đoạn để nghe toàn đoạn. Trình phát có MP3/native controls, tạm dừng, tiếp tục, dừng và thử lại. Trong công cụ có **Nguồn giọng đọc**:
+
+- **Google trực tuyến** mặc định: chỉ gửi từng phần văn bản đang nghe qua `/api/speech` tới endpoint Google Translate TTS, tối đa 180 Unicode code point/phần, chuẩn bị trước một phần kế tiếp. Không cần API key, không sửa Supabase, không bật dịch vụ trả phí. Endpoint công khai này không phải Google Cloud Text-to-Speech có SLA; có thể thay đổi, bị chặn hoặc giới hạn lượt. Ứng dụng báo lỗi và cho thử lại/chọn giọng thiết bị, không giả âm thanh. Cần Internet; request/âm thanh không lưu vào cloud hoặc service-worker cache. Âm thanh chỉ giữ tạm trong RAM và giải phóng khi dừng/đổi sách. Nếu trình duyệt chặn tự phát sau khi tải, bấm **Phát** hoặc **Tiếp tục nghe** trên trình phát.
+- **Giọng thiết bị**: không gọi API giọng đọc của ứng dụng, chờ `voiceschanged`, chọn giọng đúng ngôn ngữ sách (Việt/Anh/Trung) và giữ utterance theo từng phần để tránh mất đối tượng/đoạn quá dài. Thiếu giọng thì báo rõ, có thể cài giọng trên thiết bị hoặc chọn Google trực tuyến. Tính offline của giọng hệ thống phụ thuộc thiết bị/nhà cung cấp giọng.
+
+Kiểm tra thực tế qua workerd và proxy môi trường: Google TTS trả MP3 HTTP 200 cho Việt/Anh/Trung. Chromium chế độ điện thoại giải mã và phát âm thanh thật dưới CSP production (`currentTime > 0`, `paused=false`, `readyState=4`). Kiểm tra tự động không thay thế đánh giá nghe bằng tai hoặc kiểm tra mọi thiết bị. Fixture `tests/fixtures/speech-vi.mp3` là âm thanh tổng hợp của câu thử “Đọc sách mỗi ngày.”; kiểm tra giao diện thường dùng fixture để không phụ thuộc quota bên ngoài.

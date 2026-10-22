@@ -1,3 +1,4 @@
+import {speechRequest} from "./speech";
 import { sourceRequest, sourceCatalog } from "./source";
 import { myMemory } from "./mymemory";
 import {sourceSearch} from './sourceSearch';
@@ -66,6 +67,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   if (url.pathname === '/api/source/search') return sourceSearch(request,env);
   if (url.pathname === "/api/source/inspect") return sourceRequest(request, false);
   if (url.pathname === "/api/source/download") return sourceRequest(request, true);
+  if (url.pathname === "/api/speech") return speechRequest(request);
   if (url.pathname === "/api/health") return json({ ok: true });
   if (url.pathname === "/api/capabilities") {
     try {

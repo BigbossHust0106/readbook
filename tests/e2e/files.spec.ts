@@ -33,10 +33,10 @@ test("imports a real EPUB spine in order and downloads the identical original fi
   await page.getByLabel("Ngôn ngữ nguyên bản").selectOption("zh");
   await page.getByRole("button", { name: "Nhập & lưu sách" }).click();
   await page.getByRole("button", { name: /Chinese/ }).click();
-  await expect(page.locator(".paragraphs")).toContainText("你好，世界！");
-  await expect(page.locator(".paragraphs")).not.toContainText("第二段。");
+  await expect(page.locator(".reading-paper:not(.viewport-measure)")).toContainText("你好，世界！");
+  await expect(page.locator(".reading-paper:not(.viewport-measure)")).not.toContainText("第二段。");
   await showTools(page);await page.getByLabel("Chương", { exact: true }).selectOption("1");await hideTools(page);await readyPage(page);
-  await expect(page.locator(".paragraphs")).toContainText("第二段。");
+  await expect(page.locator(".reading-paper:not(.viewport-measure)")).toContainText("第二段。");
   await showTools(page);await page.getByRole("button", { name: "Chỉnh thông tin sách" }).click();
   const wait = page.waitForEvent("download");
   await page.getByRole("button", { name: "Tải tệp gốc" }).click();
@@ -69,8 +69,8 @@ test("extracts actual DOCX text runs without executing markup", async ({
   });
   await page.getByRole("button", { name: "Nhập & lưu sách" }).click();
   await page.getByRole("button", { name: /Document/ }).click();
-  await expect(page.locator(".paragraphs")).toContainText("Xin chào & hello.");
-  await expect(page.locator(".paragraphs")).toContainText("段落二。");
+  await expect(page.locator(".reading-paper:not(.viewport-measure)")).toContainText("Xin chào & hello.");
+  await expect(page.locator(".reading-paper:not(.viewport-measure)")).toContainText("段落二。");
 });
 test("previews and maps CSV with safe export and duplicate merging", async ({
   page,
@@ -118,7 +118,7 @@ test("production PWA reads local data after network loss and has no horizontal m
   await context.setOffline(true);
   await page.reload();
   await page.getByRole("button", { name: /Offline/ }).click();
-  await expect(page.locator(".paragraphs")).toContainText(
+  await expect(page.locator(".reading-paper:not(.viewport-measure)")).toContainText(
     "Nội dung ngoại tuyến.",
   );
   await page.setViewportSize({ width: 390, height: 844 });
@@ -168,7 +168,7 @@ test("backup restores into a separate browser with original text and rejects mal
   await expect(fresh.getByRole("status")).toContainText("Đã khôi phục");
   await navigate(fresh, "Thư viện của tôi");
   await fresh.getByRole("button", { name: /Bản sao an toàn/ }).click();
-  await expect(fresh.locator(".paragraphs")).toContainText(
+  await expect(fresh.locator(".reading-paper:not(.viewport-measure)")).toContainText(
     "Văn bản gốc cần sao lưu.",
   );
   await navigate(fresh, 'Thư viện của tôi');

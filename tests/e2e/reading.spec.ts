@@ -54,15 +54,11 @@ test("import, manual translation, locked edit, note, position, vocabulary and pe
   await page.getByRole("button", { name: "Lưu từ", exact: true }).click();await page.getByRole("button",{name:"Đóng tra từ"}).click();
   await page.getByRole("button", { name: "Lưu vị trí đoạn 2" }).click();
   await expect(page.locator(".paragraph").nth(1)).toHaveClass(/current/);
-  await page.reload();
-  await expect(page.locator(".reading-paper:not(.viewport-measure)")).toBeVisible();
-  await expect(page.locator(".translated").first()).toContainText(
-    "Hello world.",
-  );
-  await expect(page.locator(".paragraph-note")).toContainText(
-    "Ghi chú được lưu.",
-  );
-  await expect(page.locator(".paragraph").nth(1)).toHaveClass(/current/);
+  await page.reload();await readyPage(page);
+  await expect(page.locator('.reading-paper:not(.viewport-measure) [data-paragraph-id]').first()).toHaveAttribute('data-paragraph','1');
+  await page.getByRole('button',{name:'Trang trước',exact:true}).click();await readyPage(page);
+  await expect(page.locator('.reading-paper:not(.viewport-measure) .translated').first()).toContainText('Hello world.');
+  await expect(page.locator('.paragraph-note')).toContainText('Ghi chú được lưu.');
   await navigate(page, 'Thư viện của tôi');
   await navigate(page, /Sổ từ vựng/);
   await expect(page.locator(".word-row")).toContainText("Xin chào");
@@ -84,7 +80,7 @@ test("duplicate import is rejected and HTML never executes", async ({
   });
   await page.getByRole("button", { name: "Nhập & lưu sách" }).click();
   await page.getByRole("button", { name: /safe/ }).click();
-  await expect(page.locator(".paragraphs")).toContainText("Hello world.");
+  await expect(page.locator(".reading-paper:not(.viewport-measure)")).toContainText("Hello world.");
   expect(await page.evaluate(() => "PWNED" in window)).toBe(false);
 });
 async function pasteBookDuplicate(page: Page) {

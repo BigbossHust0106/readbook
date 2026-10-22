@@ -4,6 +4,7 @@ import {bookFileMetadata,splitBookName} from "./bookMetadata";
 import {TranslationImport} from "./TranslationImport";
 import {applyImportedTranslations} from "./translationImport";
 import {putBookmark,removeBookmark} from "./bookmarks";
+import {useSpeechReader,type SpeechProvider} from "./useSpeechReader";
 import {useViewportPages} from "./useViewportPages";
 import {SyncPanel} from "./SyncPanel";
 import {flushEdits,syncEdits} from "./cloudSync";
@@ -14,7 +15,7 @@ import { useReadingProgress } from "./useReadingProgress";
 import { GroupsPanel } from "./GroupsPanel";
 import { importGroupBook } from "./groups";
 import { SourceImport } from "./SourceImport";
-import { paginateBook, pageForPosition, translatedFragment, type Fragment } from "./reading";
+import { pageForPosition, translatedFragment, type Fragment } from "./reading";
 import { ReviewPanel } from "./ReviewPanel";
 import { ParentPinSettings, ParentUnlock, enterChildLock } from "./ParentLock";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
@@ -1534,7 +1535,6 @@ function Reader({
     [translating, setTranslating] = useState(false),
     [jobStatus, setJobStatus] = useState(""),
     [consent, setConsent] = useState(false),
-    [speaking, setSpeaking] = useState(false),
     [speechRate, setSpeechRate] = useState(1),
     [sourcePdf, setSourcePdf] = useState<Blob | null>(null),
     [sourceLoading, setSourceLoading] = useState(false),
@@ -1542,20 +1542,25 @@ function Reader({
     [newTitle, setNewTitle] = useState(book.title),
     [newAuthor, setNewAuthor] = useState(book.author);
   const [readMode, setReadMode] = useState<"paged" | "continuous">("paged");
+  const [speechProvider,setSpeechProvider]=useState<SpeechProvider>("google"),[speechVoice,setSpeechVoice]=useState("");
+  const speech=useSpeechReader(speechProvider,speechRate,speechVoice);
+  const speaking=speech.phase!=="idle";
   const [translationImport,setTranslationImport]=useState(false);
   const [pageSize, setPageSize] = useState(2500);
+  const [showPageButtons,setShowPageButtons]=useState(true);
   const [fontFamily,setFontFamily]=useState('noto'),[lineHeight,setLineHeight]=useState(1.85),[paperWidth,setPaperWidth]=useState(1120);
   const fonts:Record<string,string>={noto:'"Noto Sans", sans-serif',serif:'Georgia, "Times New Roman", "Noto Sans", serif',system:'system-ui, "Noto Sans", sans-serif'};
   const [readerReady, setReaderReady] = useState(false);
-  const fallbackPages = useMemo(() => paginateBook(book, pageSize), [book.chapters, pageSize]);
-  const [pageIndex, setPageIndex] = useState(() => pageForPosition(paginateBook(book, 2500), book.position));
+  const [pagePosition, setPagePosition] = useState(book.position);
+  const [turning, setTurning] = useState(false);
   const [rangeStart, setRangeStart] = useState(book.position.chapter);
   const [rangeEnd, setRangeEnd] = useState(Math.min(book.chapters.length, book.position.chapter + 2));
   const [activeParagraph, setActiveParagraph] = useState("");
   const paper = useRef<HTMLDivElement | null>(null),pageFrame=useRef<HTMLDivElement|null>(null);
-  const viewport=useViewportPages({book,frame:pageFrame,enabled:readMode==='paged'&&readerReady,layout,target,font,fontFamily:fonts[fontFamily],lineHeight,budget:pageSize,widthLimit:paperWidth});
+  const viewport=useViewportPages({book,position:pagePosition,frame:pageFrame,enabled:readMode==='paged'&&readerReady,layout,target,font,fontFamily:fonts[fontFamily],lineHeight,budget:pageSize,widthLimit:paperWidth});
   const paginationBusy=readMode==='paged'&&(!readerReady||viewport.busy);
-  const pages=readMode==='paged'&&viewport.pages.length?viewport.pages:fallbackPages;
+  const pages=viewport.pages;
+  const pageIndex=pageForPosition(pages,pagePosition);
   const sentinel = useRef<HTMLDivElement | null>(null);
   const translationPanel = useRef<HTMLDetailsElement | null>(null);
   const [wordHit,setWordHit]=useState<SelectedText|null>(null);
@@ -1588,7 +1593,7 @@ function Reader({
     if(!controls.current||floatingTools)return;
     const resize=new ResizeObserver(()=>setControlsHeight(controls.current?.offsetHeight||0));resize.observe(controls.current);return()=>resize.disconnect();
   },[floatingTools]);
-  const fragments: Fragment[] = readMode === "paged" ? pages[Math.min(pageIndex, pages.length - 1)].fragments :
+  const fragments: Fragment[] = readMode === "paged" ? (pages[pageIndex]?.fragments || []) :
     book.chapters.slice(rangeStart, rangeEnd).flatMap((c, ci) => c.paragraphs.map((p, pi) => ({ chapter: rangeStart + ci, paragraph: pi, start: 0, end: p.text.length })));
   const latest = useRef(book),
     stopped = useRef(false),
@@ -1605,11 +1610,14 @@ function Reader({
         layout: "original",
         readMode: "paged",
         pageSize: 2500,
+        showPageButtons:true,speechProvider:"google",speechVoice:"",speechRate:1,
         fontFamily:'noto',lineHeight:1.85,paperWidth:1120,
         target: book.language === "vi" ? "en" : "vi",
       })
       .then((s) => {
         setFont(s.font);
+        setShowPageButtons(s.showPageButtons!==false);
+        setSpeechProvider(s.speechProvider==="device"?"device":"google");setSpeechVoice(s.speechVoice||"");setSpeechRate(Math.max(.6,Math.min(1.5,Number(s.speechRate)||1)));
         setTheme(s.theme);
         setLayout(s.layout);
         setReadMode(s.readMode === "continuous" ? "continuous" : "paged");
@@ -1625,13 +1633,8 @@ function Reader({
     };
   }, []);
   useEffect(() => {
-    if (readerReady) void store.setSetting("reader", { font, theme, layout, target, readMode, pageSize,fontFamily,lineHeight,paperWidth });
-  }, [readerReady, font, theme, layout, target, readMode, pageSize,fontFamily,lineHeight,paperWidth]);
-  useEffect(() => {
-    if (!readerReady) return;
-    const index = pageForPosition(pages, latest.current.position);
-    setPageIndex(index); setChapter(pages[index].chapter);
-  }, [pages, readerReady]);
+    if (readerReady) void store.setSetting("reader", { font, theme, layout, target, readMode, pageSize,fontFamily,lineHeight,paperWidth,showPageButtons,speechProvider,speechVoice,speechRate });
+  }, [readerReady, font, theme, layout, target, readMode, pageSize,fontFamily,lineHeight,paperWidth,showPageButtons,speechProvider,speechVoice,speechRate]);
   useEffect(() => {
     if (readMode !== "continuous" || !sentinel.current || !("IntersectionObserver" in window)) return;
     const observer = new IntersectionObserver(entries => {
@@ -1639,31 +1642,39 @@ function Reader({
     }, { rootMargin: "600px" });
     observer.observe(sentinel.current); return () => observer.disconnect();
   }, [readMode, rangeEnd, book.chapters.length]);
-  const readingProgress=useReadingProgress({book,paper,ready:readerReady&&!paginationBusy,onProgress:async position=>{latest.current={...latest.current,position};await onProgress(position);},onRemote:position=>{
-    const index=pageForPosition(pages,position);setPageIndex(index);setChapter(position.chapter);setRangeStart(position.chapter);setRangeEnd(Math.min(book.chapters.length,position.chapter+2));
+  const readingProgress=useReadingProgress({book,paper,ready:readerReady&&!paginationBusy,onProgress:async position=>{setPagePosition(position);latest.current={...latest.current,position};await onProgress(position);},onRemote:position=>{
+    viewport.seek(position);setPagePosition(position);setChapter(position.chapter);setRangeStart(position.chapter);setRangeEnd(Math.min(book.chapters.length,position.chapter+2));
   }});
   useEffect(()=>{
     const key=(e:KeyboardEvent)=>{
-      if(readMode!=="paged"||paginationBusy||e.shiftKey||e.altKey||e.ctrlKey||e.metaKey||document.querySelector('.overlay,.sidebar.open')||e.target instanceof HTMLElement&&e.target.closest('input,textarea,select,[contenteditable=true],.word-popover,.reader-flyout'))return;
+      if(readMode!=="paged"||paginationBusy||turning||e.shiftKey||e.altKey||e.ctrlKey||e.metaKey||document.querySelector('.overlay,.sidebar.open')||e.target instanceof HTMLElement&&e.target.closest('input,textarea,select,[contenteditable=true],.word-popover,.reader-flyout,.speech-player'))return;
       if(e.key==="ArrowRight"){e.preventDefault();void goPage(pageIndex+1);}if(e.key==="ArrowLeft"){e.preventDefault();void goPage(pageIndex-1);}
       if(e.key==="Escape"){closeLookup();setFloatingTools(false);}
     };window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key);
-  },[readMode,pageIndex,translating,pages,paginationBusy]);
+  },[readMode,pageIndex,translating,pages,paginationBusy,turning]);
   async function goPage(index: number) {
-    if (index < 0 || index >= pages.length || translating || paginationBusy) return;
-    const first = pages[index].fragments[0];
-    setPageIndex(index); setChapter(first.chapter); setActiveParagraph("");
+    if (translating || paginationBusy || turning) return;
+    let page=pages[index];
+    if (!page) {
+      if(index<0&&viewport.beforeComplete||index>=pages.length&&viewport.afterComplete)return;
+      setTurning(true);
+      try { const next=await viewport.extend(index<0?'backward':'forward');if(!next)return;page=next; }
+      finally { setTurning(false); }
+    }
+    if(!page)return;
+    const first=page.fragments[0],position={chapter:first.chapter,paragraph:first.paragraph,offset:first.start};
+    setPagePosition(position); setChapter(first.chapter); setActiveParagraph("");
     closeLookup();
-    void readingProgress.record({ chapter:first.chapter,paragraph:first.paragraph,offset:first.start }).catch(e=>notify(errorText(e)));
+    void readingProgress.record(position).catch(e=>notify(errorText(e)));
     if(readMode!=="paged")paper.current?.scrollIntoView({ block: "start", behavior: "instant" });
   }
   function jumpTo(position:Book['position']) {
-    closeLookup();setSearch('');setPageIndex(pageForPosition(pages,position));setChapter(position.chapter);setRangeStart(position.chapter);setRangeEnd(Math.min(book.chapters.length,position.chapter+2));
+    closeLookup();setSearch('');viewport.seek(position);setPagePosition(position);setChapter(position.chapter);setRangeStart(position.chapter);setRangeEnd(Math.min(book.chapters.length,position.chapter+2));
     setActiveParagraph(book.chapters[position.chapter].paragraphs[position.paragraph].id);
     void readingProgress.record(position).catch(e=>notify(errorText(e)));setTimeout(()=>readingProgress.reveal(position),60);
   }
   async function goChapter(ci: number) {
-    if (readMode === "paged") { await goPage(pages.findIndex(p => p.chapter === ci)); return; }
+    if (readMode === "paged") { jumpTo({chapter:ci,paragraph:0,offset:0}); return; }
     setChapter(ci); setRangeStart(ci); setRangeEnd(Math.min(book.chapters.length, ci + 2));
     closeLookup();
     try { await readingProgress.record({ chapter:ci,paragraph:0,offset:0 }); }
@@ -1691,7 +1702,6 @@ function Reader({
       notify(errorText(e));
     }
   }
-  const paragraphs = book.chapters[chapter].paragraphs;
   const supported =
     cap?.configured &&
     cap.pairs.some(
@@ -1777,23 +1787,8 @@ function Reader({
       });
     }
   }
-  function speak(text: string, lang: Lang) {
-    if (!("speechSynthesis" in window)) {
-      notify("Trình duyệt không hỗ trợ đọc thành tiếng.");
-      return;
-    }
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = { vi: "vi-VN", zh: "zh-CN", en: "en-US" }[lang];
-    u.rate = speechRate;
-    u.onend = () => setSpeaking(false);
-    u.onerror = () => {
-      setSpeaking(false);
-      notify("Không phát được giọng đọc. Kiểm tra giọng đã cài trên thiết bị.");
-    };
-    setSpeaking(true);
-    speechSynthesis.speak(u);
-  }
+  function speak(text: string, lang: Lang, label = 'Trang đang đọc') { speech.start(text,lang,label); }
+  function speakPage(){speak(fragments.map(f=>book.chapters[f.chapter].paragraphs[f.paragraph].text.slice(f.start,f.end)).join('\n'),book.language);}
   return (
     <div className={`reader theme-${theme} ${readMode==='paged'?'is-paged':''} ${paginationBusy?'pagination-pending':''}`}>
       <button className="reader-mobile-menu" aria-label="Mở menu" onClick={()=>{closeLookup();onMenu();}}><Menu/></button>
@@ -1813,6 +1808,14 @@ function Reader({
         const paragraph=book.chapters.flatMap(c=>c.paragraphs).find(p=>p.id===wordHit.paragraphId)!;
         await onWord({id:id(),term,meaning,language:wordHit.source,status:'new',createdAt:new Date().toISOString(),contexts:[{bookId:book.id,bookTitle:book.title,paragraphId:paragraph.id,sentence:wordHit.source===book.language?paragraph.text:paragraph.translations[wordHit.source]?.text||paragraph.text}]});
       }}/>}
+      <button className="reader-listen-button" title={speaking?'Dừng nghe':`Nghe trang · ${speechProvider==='google'?'Google trực tuyến':'giọng thiết bị'}`} aria-label={speaking?'Dừng đọc thành tiếng':'Nghe trang đang đọc'} disabled={paginationBusy} onClick={()=>speaking?speech.stop():speakPage()}><Volume2 size={18}/></button>
+      <section className="speech-player" aria-label="Trình phát đọc sách" hidden={!speaking}>
+        <div className="row"><strong>{speech.label}</strong><span>{speech.part}</span><button onClick={speech.stop} aria-label="Dừng nghe">×</button></div>
+        <p role="status">{speech.error || (speech.phase==='loading'?'Đang chuẩn bị giọng đọc…':speech.phase==='paused'?'Đã tạm dừng.':speech.phase==='playing'?'Đang phát giọng đọc.':'')}</p>
+        <small>{speechProvider==='google'?'Google trực tuyến · chỉ gửi phần đang nghe':'Giọng thiết bị'}</small>
+        <audio ref={speech.audio} controls preload="none" aria-label="Âm thanh đọc sách" hidden={speechProvider!=='google'}/>
+        <div className="row">{speech.phase==='playing'&&<button onClick={speech.pause}>Tạm dừng nghe</button>}{speech.phase==='paused'&&<button onClick={()=>void speech.resume()}>Tiếp tục nghe</button>}{speech.phase==='error'&&<button onClick={speech.retry}>Thử đọc lại</button>}</div>
+      </section>
       {(readMode==='paged'||toolsOffscreen||floatingTools)&&<button className="show-reader-tools" aria-expanded={floatingTools} onClick={()=>setFloatingTools(v=>!v)}>{floatingTools?"Ẩn công cụ":"Hiện công cụ"}</button>}
       <div ref={controlSlot} className="reader-control-slot" style={floatingTools?{height:controlsHeight}:undefined}>
       <div ref={controls} className={`reader-controls ${floatingTools?"tools-floating":""}`}>
@@ -1886,6 +1889,7 @@ function Reader({
           const mode = e.target.value as "paged" | "continuous"; setReadMode(mode);
           setRangeStart(chapter); setRangeEnd(Math.min(book.chapters.length, chapter + 2));
         }}><option value="paged">Lật trang</option><option value="continuous">Cuộn liên tục</option></select></label>
+        <label className="checkbox"><input type="checkbox" checked={showPageButtons} onChange={e=>setShowPageButtons(e.target.checked)}/>Hiện nút chuyển trang</label>
         <label>Ký tự mỗi trang · {pageSize.toLocaleString("vi-VN")}<input aria-label="Số ký tự mỗi trang" type="range" min={500} max={8000} step={250} value={pageSize} disabled={translating} onChange={e => setPageSize(Number(e.target.value))} /></label>
         <label>
           Cỡ chữ
@@ -1899,6 +1903,8 @@ function Reader({
           />
         </label>
         <label>Phông chữ<select aria-label="Phông chữ đọc" value={fontFamily} onChange={e=>setFontFamily(e.target.value)}><option value="noto">Noto Sans</option><option value="serif">Chữ có chân</option><option value="system">Phông hệ thống</option></select></label>
+        <label>Nguồn giọng đọc<select aria-label="Nguồn giọng đọc" value={speechProvider} onChange={e=>setSpeechProvider(e.target.value as SpeechProvider)}><option value="google">Google trực tuyến (gửi văn bản tới Google)</option><option value="device">Giọng thiết bị</option></select></label>
+        {speechProvider==='device'&&<label>Giọng thiết bị<select aria-label="Giọng thiết bị" value={speechVoice} onChange={e=>setSpeechVoice(e.target.value)}><option value="">Tự chọn đúng ngôn ngữ sách</option>{speech.voices.filter(v=>v.lang.toLowerCase().startsWith(book.language)).map(v=><option value={v.voiceURI} key={v.voiceURI}>{v.name} · {v.lang}</option>)}</select></label>}
         <label>Khoảng dòng<input aria-label="Khoảng dòng" type="range" min={1.3} max={2.5} step={0.05} value={lineHeight} onChange={e=>setLineHeight(Number(e.target.value))}/></label>
         <label>Chiều rộng trang<input aria-label="Chiều rộng trang" type="range" min={560} max={1400} step={20} value={paperWidth} onChange={e=>setPaperWidth(Number(e.target.value))}/></label>
         <label>
@@ -1991,8 +1997,8 @@ function Reader({
           <button
             onClick={() =>
               speaking
-                ? (speechSynthesis.cancel(), setSpeaking(false))
-                : speak(paragraphs.map((p) => p.text).join("\n"), book.language)
+                ? speech.stop()
+                : speakPage()
             }
           >
             {speaking ? <Pause size={16} /> : <Volume2 size={16} />}{" "}
@@ -2015,8 +2021,7 @@ function Reader({
         </div>
         <p role="status">{jobStatus}</p>
         <small>
-          Giọng đọc hệ thống tùy thiết bị; không cam kết hoạt động offline nếu
-          giọng chưa tải sẵn.
+          {speechProvider==='google'?'Google trực tuyến: chỉ gửi phần đang nghe; cần Internet. Có thể chọn giọng thiết bị trong công cụ đọc.':'Giọng thiết bị cần có giọng đúng ngôn ngữ sách. Nếu không phát được, chọn Google trực tuyến.'}
         </small>
       </details>
       </div></div>
@@ -2032,9 +2037,10 @@ function Reader({
           />
         </label>
       </div>
-      <div ref={pageFrame} className="page-frame">
+      <div ref={pageFrame} className="page-frame" data-pagination-complete={viewport.complete}>
+      {viewport.error&&readMode==='paged'&&<p role="alert">{viewport.error}</p>}
       {paginationBusy&&readMode==='paged'&&<p className="pagination-loading" role="status">Đang chia trang theo màn hình…</p>}
-      <div ref={paper} className={`reading-paper paragraphs layout-${layout} mode-${readMode}`} style={{ fontSize: font,maxWidth:paperWidth,"--reader-font":fonts[fontFamily],"--reader-leading":lineHeight } as React.CSSProperties} tabIndex={0} aria-label="Trang sách" aria-busy={paginationBusy}
+      <div ref={paper} className={`reading-paper paragraphs layout-${layout} mode-${readMode}`} style={{ fontSize: font,maxWidth:paperWidth,"--reader-font":fonts[fontFamily],"--reader-leading":lineHeight } as React.CSSProperties} tabIndex={0} aria-label="Trang sách" aria-busy={paginationBusy||turning}
         onPointerDown={e=>{selecting.current=true;if(e.pointerType==='touch'){touch.current={x:e.clientX,y:e.clientY,at:Date.now()};skipClick.current=Date.now()+500;}}}
         onPointerCancel={()=>{selecting.current=false;touch.current=null;}}
         onPointerUp={e=>{selecting.current=false;if(e.pointerType!=='touch'||!touch.current)return;const start=touch.current;touch.current=null;const dx=e.clientX-start.x,dy=e.clientY-start.y;
@@ -2143,7 +2149,7 @@ function Reader({
                 </button>
                 <button
                   aria-label={`Nghe đoạn ${i + 1}`}
-                  onClick={() => speak(p.text, book.language)}
+                  onClick={() => speak(p.text, book.language,`Đoạn ${i+1} · ${book.chapters[ci].title}`)}
                 >
                   <Volume2 size={15} />
                 </button>
@@ -2163,8 +2169,8 @@ function Reader({
       </div>
       </div>
       {readMode === "continuous" && <div ref={sentinel} className="reading-sentinel" role="status">{rangeEnd < book.chapters.length ? "Đang nối phần tiếp theo…" : "Đã đến cuối sách."}</div>}
-      {readMode==='paged'&&<nav className="desktop-page-buttons" aria-label="Lật trang"><button aria-label="Trang trước" disabled={paginationBusy||pageIndex===0} onClick={()=>void goPage(pageIndex-1)}><ChevronLeft/></button><button aria-label="Trang sau" disabled={paginationBusy||pageIndex>=pages.length-1} onClick={()=>void goPage(pageIndex+1)}><ChevronRight/></button></nav>}
-      <div className="reader-page-status" aria-live="polite">{readMode==='paged'?`Trang ${pageIndex+1}/${pages.length} · vuốt hoặc dùng phím trái/phải`:'Đọc liên tục · tự lưu vị trí'}</div>
+      {readMode==='paged'&&showPageButtons&&<nav className="desktop-page-buttons" aria-label="Lật trang"><button aria-label="Trang trước" disabled={paginationBusy||turning||pageIndex===0&&viewport.beforeComplete} onClick={()=>void goPage(pageIndex-1)}><ChevronLeft/></button><button aria-label="Trang sau" disabled={paginationBusy||turning||pageIndex>=pages.length-1&&viewport.afterComplete} onClick={()=>void goPage(pageIndex+1)}><ChevronRight/></button></nav>}
+      <div className="reader-page-status" aria-live="polite">{readMode==='paged'?`Trang ${pageIndex+1}/${viewport.complete?pages.length:'…'} · ${turning?'đang mở trang':viewport.complete?'vuốt hoặc dùng phím trái/phải':'đang chia tiếp trong nền'}`:'Đọc liên tục · tự lưu vị trí'}</div>
       {editing && (
         <Modal
           title="Bản dịch & ghi chú"

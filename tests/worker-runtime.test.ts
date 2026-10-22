@@ -55,3 +55,9 @@ it('downloads a public Drive file through validated redirects in workerd',async(
  const response=await mf.dispatchFetch('http://localhost/api/source/download',{method:'POST',headers:{Origin:'http://localhost'},body:JSON.stringify({url:'https://docs.google.com/uc?id=15zlSM76mB03rLgU9QLSOCT5M55Tqoa12'})});
  expect(response.status).toBe(200);expect(await response.text()).toBe('%PDF-1.6');expect(decodeURIComponent(response.headers.get('X-Book-Filename')!)).toBe('Con Có Thể.pdf');expect(calls).toHaveLength(2);
 });
+it('streams MP3 speech in the actual Worker runtime and rejects provider redirects',async()=>{
+ const calls:string[]=[];const mf=runtime(req=>{calls.push(req.url);return new RuntimeResponse(new Uint8Array([255,243,132,0]),{headers:{'Content-Type':'audio/mpeg'}});});
+ const request={method:'POST',headers:{Origin:'http://localhost'},body:JSON.stringify({text:'Đọc sách.',language:'vi'})};
+ const response=await mf.dispatchFetch('http://localhost/api/speech',request);expect(response.status).toBe(200);expect(response.headers.get('Content-Type')).toBe('audio/mpeg');expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([255,243,132,0]));expect(new URL(calls[0]).hostname).toBe('translate.google.com');
+ const redirect=runtime(()=>new RuntimeResponse(null,{status:302,headers:{Location:'https://untrusted.example/audio'}}));expect((await redirect.dispatchFetch('http://localhost/api/speech',request)).status).toBe(502);
+});

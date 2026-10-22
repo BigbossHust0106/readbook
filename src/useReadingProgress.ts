@@ -46,8 +46,8 @@ export function useReadingProgress({book,paper,ready,onProgress,onRemote}:{book:
     if(p.chapter||p.paragraph||p.offset){const handle=setTimeout(()=>restore(p),100);return()=>clearTimeout(handle);}
   },[ready]);
   useEffect(()=>{
-    const incoming=key(book.position);if(incoming===own.current)return;own.current=incoming;
-    if(!ready)return;skip.current=Date.now()+1400;current.current.onRemote(book.position);
+    const incoming=key(book.position);if(incoming===own.current||!ready)return;own.current=incoming;
+    skip.current=Date.now()+1400;current.current.onRemote(book.position);
     const handle=setTimeout(()=>restore(book.position),100);return()=>clearTimeout(handle);
   },[book.position.chapter,book.position.paragraph,book.position.offset,ready]);
   useEffect(()=>{
