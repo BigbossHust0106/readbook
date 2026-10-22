@@ -2050,3 +2050,11 @@ body.reading-paged .app,body.reading-paged .app>main { height:100dvh;min-height:
 .app > main > .topbar { position:sticky;top:0;z-index:80;background:#fffdf8;padding-left:76px; }
 .topbar .mobile-menu { position:fixed;top:10px;left:12px;z-index:85;padding:9px;background:#fffdf8;box-shadow:0 2px 10px #183c3020; }
 .app > .sidebar { position:fixed;left:0;top:0; }
+
+.install-app-intro { display:flex;align-items:center;gap:14px;margin:10px 0 18px; }
+.install-app-intro img { flex-shrink:0;border-radius:14px; }
+.install-app-intro p { margin:0; }
+.install-app h3,.install-app-status { display:flex;align-items:center;gap:8px; }
+.install-app h3 svg,.install-app-status svg { flex-shrink:0; }
+.install-instructions li { margin:10px 0;line-height:1.65; }
+.install-instructions ol { padding-left:24px; }

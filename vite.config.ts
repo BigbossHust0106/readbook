@@ -27,7 +27,7 @@ export default defineConfig({
             )
             .replace(
               /const PRECACHE\s*=\s*\[[\s\S]*?\];/,
-              `const PRECACHE=${JSON.stringify(["/", "/icon.svg", "/manifest.webmanifest", ...assets])};`,
+              `const PRECACHE=${JSON.stringify(["/", "/icon.svg", "/icons/app-192.png", "/icons/app-512.png", "/icons/apple-touch-icon.png", "/manifest.webmanifest", ...assets])};`,
             ),
         );
       },

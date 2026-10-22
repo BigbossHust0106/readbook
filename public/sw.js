@@ -1,6 +1,6 @@
 // Build replaces CACHE and PRECACHE with the complete hashed application shell.
 const CACHE = "lasach-shell-v1";
-const PRECACHE = ["/", "/icon.svg", "/manifest.webmanifest"];
+const PRECACHE = ["/", "/icon.svg", "/icons/app-192.png", "/icons/app-512.png", "/icons/apple-touch-icon.png", "/manifest.webmanifest"];
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((c) => c.addAll(PRECACHE)));
 });
@@ -39,6 +39,7 @@ self.addEventListener("fetch", (event) => {
     );
   else if (
     url.pathname.startsWith("/assets/") ||
+    url.pathname.startsWith("/icons/") ||
     url.pathname.startsWith("/pdf/") ||
     url.pathname.startsWith("/ocr/") ||
     ["/icon.svg", "/manifest.webmanifest"].includes(url.pathname)

@@ -1,4 +1,5 @@
 import {Modal} from "./Modal";
+import {InstallAppContent,useAppInstall} from "./InstallApp";
 import {FileDropZone} from "./FileDropZone";
 import {bookFileMetadata,splitBookName} from "./bookMetadata";
 import {TranslationImport} from "./TranslationImport";
@@ -128,6 +129,8 @@ function LanguageSelect({
 }
 
 export default function App() {
+  const appInstall=useAppInstall();
+  const [installOpen,setInstallOpen]=useState(false);
   const [page, setPage] = useState<Page>("library");
   const [books, setBooks] = useState<Book[]>([]);
   const [words, setWords] = useState<Word[]>([]);
@@ -510,6 +513,7 @@ export default function App() {
               )}
             </button>
           ))}
+          <button onClick={()=>{setMobileNav(false);setInstallOpen(true);}}><Download size={19}/>Cài đặt ứng dụng</button>
         </nav>
         <div id="reader-sidebar-content"/>
         <div className="storage">
@@ -1023,6 +1027,7 @@ export default function App() {
                   </div>
                 </div>
                 <div className="settings-grid">
+                  <section className="panel"><h2><Download size={21}/> Cài đặt ứng dụng</h2><InstallAppContent state={appInstall}/></section>
                   <section className="panel">
                     <h2>
                       <Cloud size={21} /> Tài khoản & Supabase
@@ -1183,6 +1188,7 @@ export default function App() {
           </div>
         )}
       </main>
+      {installOpen&&<Modal title="Cài đặt ứng dụng" onClose={()=>setInstallOpen(false)}><InstallAppContent state={appInstall}/></Modal>}
       {message && (
         <div role="status" className="toast">
           <span>{message}</span>
