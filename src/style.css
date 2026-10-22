@@ -2058,3 +2058,45 @@ body.reading-paged .app,body.reading-paged .app>main { height:100dvh;min-height:
 .install-app h3 svg,.install-app-status svg { flex-shrink:0; }
 .install-instructions li { margin:10px 0;line-height:1.65; }
 .install-instructions ol { padding-left:24px; }
+
+/* A quiet reading room for each shared book. */
+.group-book-rating { display:flex;align-items:center;gap:6px;margin:8px 0 12px;font-size:13px;color:#8c702c; }
+.book-rating { display:flex;justify-content:space-between;align-items:center;gap:20px;padding:18px;background:linear-gradient(135deg,#f6f0db,#edf3e9);border:1px solid #e2e5d6;border-radius:14px;margin:6px 0 22px; }
+.rating-number { font-size:42px;font-weight:700;color:#285e4c;line-height:1; }
+.book-rating>div>span { display:inline-flex;align-items:center;gap:5px; }
+.book-rating p { font-size:12px;margin:8px 0 0;color:#6b7867; }
+.rating-stars { display:flex;gap:2px;margin:8px 0; }
+.rating-stars button { padding:5px;border:0;background:transparent;color:#b08c36;border-radius:7px; }
+.rating-stars button:hover:not(:disabled),.rating-stars button:focus-visible { background:#fff9df;transform:translateY(-2px); }
+.rating-remove { font-size:11px;padding:3px 7px; }
+.comment-compose textarea { resize:vertical;min-height:100px; }
+.comment-compose .row { justify-content:flex-end;margin-top:9px; }
+.comment-compose small { margin-right:auto;color:#83907d; }
+.discussion-heading { display:flex;justify-content:space-between;align-items:center;gap:12px;border-top:1px solid #e3e8dc;margin-top:24px;padding-top:18px; }
+.discussion-heading h3 { display:flex;align-items:center;gap:7px;font-size:16px;margin:0; }
+.discussion-heading button { padding:7px 10px;font-size:12px; }
+.comment-list { display:grid;gap:12px;margin-top:16px; }
+.group-comment { padding:16px;border:1px solid #e2e7da;border-radius:12px;background:#fff; }
+.group-comment header { display:flex;gap:10px;align-items:center; }
+.comment-avatar { display:grid;place-items:center;width:34px;height:34px;flex-shrink:0;border-radius:50%;background:#e8efe3;color:#285e4c;font-weight:600; }
+.group-comment strong { font-size:13px; }
+.group-comment time { display:block;font-size:10px;color:#83907d;margin-top:3px; }
+.group-comment p { white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px;line-height:1.75;margin:12px 0 8px; }
+.comment-actions { display:flex;justify-content:flex-end;gap:6px; }
+.comment-actions button { padding:4px 9px;font-size:11px;background:transparent; }
+.comment-empty { padding:24px 12px;text-align:center;color:#7f8c77;font-size:14px; }
+.comment-load-more { display:block;margin:18px auto 0; }
+@media(max-width:420px){.book-rating{padding:14px;gap:12px;}.rating-stars button{padding:4px;}.rating-stars svg{width:22px;height:22px;}.rating-number{font-size:36px;}}
+
+/* Four articulated strips bend the departing page; the new page is readable immediately. */
+.is-paged .page-frame { perspective:1800px;isolation:isolate; }
+.page-turn-overlay { position:absolute;z-index:5;pointer-events:none;perspective:1800px;contain:layout style; }
+.page-turn-leaf { position:absolute;top:0;width:100%;height:100%;transform-style:preserve-3d;will-change:transform; }
+.page-turn-face { position:absolute;inset:0;overflow:hidden;backface-visibility:hidden;background:var(--turn-paper); }
+.page-turn-front { box-shadow:inset -1px 0 0 #00000006; }
+.page-turn-front::after { content:"";position:absolute;inset:0;background:linear-gradient(90deg,#00000014,transparent 24%,#ffffff09 65%,#0000000b); }
+.page-turn-back { transform:rotateY(180deg);background:linear-gradient(90deg,#00000016,transparent 35%,#ffffff16),var(--turn-paper);box-shadow:inset 1px 0 8px #0000000b; }
+.page-turn-shadow { position:absolute;inset:0;background:linear-gradient(90deg,#172b22a6,transparent 80%);pointer-events:none; }
+.page-turn-overlay.backward .page-turn-shadow { transform:scaleX(-1); }
+.page-turn-overlay.backward .page-turn-front::after { background:linear-gradient(270deg,#00000014,transparent 24%,#ffffff09 65%,#0000000b); }
+@media(prefers-reduced-motion:reduce){.page-turn-overlay{display:none;}.rating-stars button:hover:not(:disabled){transform:none;}}

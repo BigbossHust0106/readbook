@@ -25,3 +25,6 @@ export async function importGroupBook(gid:string,book:Book,file:Blob) {
     return canonical;
   } catch(error) { await store.deleteBook(book,true).catch(()=>{}); throw error; }
 }
+export type GroupBookRating={book_id:string;average_rating:number|null;rating_count:number;my_rating:number|null};
+export type GroupComment={id:string;author_id:string;nickname:string;body:string;created_at:string;updated_at:string};
+export type GroupDiscussion={comments:GroupComment[];has_more:boolean;average_rating:number|null;rating_count:number;my_rating:number|null};

@@ -1,3 +1,4 @@
+import {usePageTurn} from "./usePageTurn";
 import {Modal} from "./Modal";
 import {InstallAppContent,useAppInstall} from "./InstallApp";
 import {FileDropZone} from "./FileDropZone";
@@ -1554,6 +1555,7 @@ function Reader({
   const [rangeEnd, setRangeEnd] = useState(Math.min(book.chapters.length, book.position.chapter + 2));
   const [activeParagraph, setActiveParagraph] = useState("");
   const paper = useRef<HTMLDivElement | null>(null),pageFrame=useRef<HTMLDivElement|null>(null);
+  const pageTurn=usePageTurn(paper,pageFrame,readMode==='paged',JSON.stringify([font,fontFamily,lineHeight,layout,target,theme]));
   const viewport=useViewportPages({book,position:pagePosition,frame:pageFrame,enabled:readMode==='paged'&&readerReady,layout,target,font,fontFamily:fonts[fontFamily],lineHeight,budget:Number.MAX_SAFE_INTEGER,widthLimit:Number.POSITIVE_INFINITY});
   const paginationBusy=readMode==='paged'&&(!readerReady||viewport.busy);
   const pages=viewport.pages;
@@ -1665,6 +1667,7 @@ function Reader({
     }
     if(!page||automatic&&(epoch!==readingEpoch.current||!autoReading.current||sleepDeadline.current>0&&Date.now()>=sleepDeadline.current))return;
     const first=page.fragments[0],position={chapter:first.chapter,paragraph:first.paragraph,offset:first.start};
+    if(readMode==='paged')pageTurn.turn(index<pageIndex?'backward':'forward');
     setPagePosition(position); setChapter(first.chapter); setActiveParagraph("");
     closeLookup();
     void readingProgress.record(position).catch(e=>notify(errorText(e)));
@@ -1672,7 +1675,7 @@ function Reader({
     return page;
   }
   function jumpTo(position:Book['position']) {
-    stopReading();closeLookup();setSearch('');viewport.seek(position);setPagePosition(position);setChapter(position.chapter);setRangeStart(position.chapter);setRangeEnd(Math.min(book.chapters.length,position.chapter+2));
+    pageTurn.cancel();stopReading();closeLookup();setSearch('');viewport.seek(position);setPagePosition(position);setChapter(position.chapter);setRangeStart(position.chapter);setRangeEnd(Math.min(book.chapters.length,position.chapter+2));
     setActiveParagraph(book.chapters[position.chapter].paragraphs[position.paragraph].id);
     void readingProgress.record(position).catch(e=>notify(errorText(e)));setTimeout(()=>readingProgress.reveal(position),60);
   }
