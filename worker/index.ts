@@ -1,5 +1,6 @@
 import { sourceRequest, sourceCatalog } from "./source";
 import { myMemory } from "./mymemory";
+import {sourceSearch} from './sourceSearch';
 export interface Env {
   ASSETS: { fetch: (request: Request) => Promise<Response> };
   LIBRETRANSLATE_URL?: string;
@@ -9,6 +10,9 @@ export interface Env {
   LOCAL_TRANSLATION?: string;
   SUPABASE_URL?: string;
   SUPABASE_ANON_KEY?: string;
+  BRAVE_SEARCH_API_KEY?: string;
+  GOOGLE_SEARCH_API_KEY?: string;
+  GOOGLE_SEARCH_ENGINE_ID?: string;
 }
 const headers = {
   "Content-Type": "application/json; charset=utf-8",
@@ -59,6 +63,7 @@ async function providerLanguages(base: string) {
 export async function handle(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   if (url.pathname === "/api/source/catalog") return request.method === "GET" ? sourceCatalog() : json({ error: "Chỉ hỗ trợ GET." }, 405);
+  if (url.pathname === '/api/source/search') return sourceSearch(request,env);
   if (url.pathname === "/api/source/inspect") return sourceRequest(request, false);
   if (url.pathname === "/api/source/download") return sourceRequest(request, true);
   if (url.pathname === "/api/health") return json({ ok: true });

@@ -1,6 +1,25 @@
 import { Parser } from 'htmlparser2';
 const HOSTS = new Set(['dtv-ebook.com.vn', 'www.dtv-ebook.com.vn']);
 const LIMIT = 50 * 1024 * 1024;
+const DRIVE_HOSTS=new Set(['docs.google.com','drive.google.com','drive.usercontent.google.com']);
+function driveId(url:URL){
+  if(!DRIVE_HOSTS.has(url.hostname))return null;
+  const path=url.pathname.match(/^\/file\/d\/([\w-]+)(?:\/.*)?$/);
+  if(!path&&!['/uc','/open','/download'].includes(url.pathname))throw new Error('Chỉ nhận liên kết tệp Google Drive công khai.');
+  const id=path?.[1]||url.searchParams.get('id');
+  if(!id||! /^[\w-]{10,200}$/.test(id))throw new Error('Liên kết Google Drive thiếu mã tệp hợp lệ.');
+  return id;
+}
+export function publicFileUrl(value:string,base?:string):URL{
+  const url=new URL(value,base);
+  if(url.protocol!=='https:'||url.username||url.password||url.port&&url.port!=='443')throw new Error('Chỉ nhận liên kết HTTPS công khai từ DTV hoặc Google Drive.');
+  if(HOSTS.has(url.hostname))return sourceUrl(url.href);
+  const id=driveId(url);
+  if(!id)throw new Error('Chỉ nhận liên kết HTTPS công khai từ DTV hoặc Google Drive.');
+  const normalized=new URL('https://docs.google.com/uc');normalized.searchParams.set('export','download');normalized.searchParams.set('id',id);
+  const resourceKey=url.searchParams.get('resourcekey');if(resourceKey&&/^[\w-]{1,200}$/.test(resourceKey))normalized.searchParams.set('resourcekey',resourceKey);
+  return normalized;
+}
 export function sourceUrl(value: string, base?: string): URL {
   const url = new URL(value, base);
   if (url.protocol !== 'https:' || !HOSTS.has(url.hostname) || url.port && url.port !== '443' || url.username || url.password)
@@ -9,9 +28,11 @@ export function sourceUrl(value: string, base?: string): URL {
 }
 function fileName(url: URL, response: Response) {
   const disposition = response.headers.get('content-disposition') || '';
-  const match = disposition.match(/filename\*?=(?:UTF-8''|\")?([^";]+)/i);
+  const match = disposition.match(/filename\*=UTF-8''([^;]+)/i)||disposition.match(/filename="([^"]+)"/i)||disposition.match(/filename=([^;]+)/i);
   let name = url.pathname.split('/').pop() || 'sach';
   if (match) { try { name = decodeURIComponent(match[1]); } catch { name = match[1]; } }
+  // Some public Drive responses carry UTF-8 bytes in a legacy filename header.
+  if(Array.from(name).every(c=>c.charCodeAt(0)<=255))try{name=new TextDecoder('utf-8',{fatal:true}).decode(Uint8Array.from(name,c=>c.charCodeAt(0)));}catch{/* Keep genuine Latin-1 names. */}
   name = name.replace(/[\x00-\x1f/\\]/g, '_').slice(0, 180);
   const mime = response.headers.get('content-type') || '';
   if (!/\.(epub|pdf|docx|txt)$/i.test(name)) {
@@ -22,14 +43,25 @@ function fileName(url: URL, response: Response) {
   if (/text\/html/i.test(mime)) return null;
   return name;
 }
-async function follow(url: URL, signal?: AbortSignal) {
+async function follow(url: URL, signal?: AbortSignal,allowDrive=false) {
+  let expectedDriveId=driveId(url);
   for (let n = 0; n < 4; n++) {
     const response = await fetch(url.href, { redirect: 'manual', signal: signal || AbortSignal.timeout(25000), headers: { Accept: 'text/html,application/pdf,application/epub+zip,application/octet-stream;q=0.8' } });
     if ([301, 302, 303, 307, 308].includes(response.status)) {
       const next = response.headers.get('location');
       await response.body?.cancel();
       if (!next) throw new Error('Trang nguồn chuyển hướng không hợp lệ.');
-      url = sourceUrl(next, url.href); continue;
+      if(!allowDrive){url=sourceUrl(next,url.href);continue;}
+      const target=new URL(next,url.href);
+      if(target.hostname==='drive.usercontent.google.com'){
+        if(target.protocol!=='https:'||target.port&&target.port!=='443'||target.username||target.password||target.pathname!=='/download'||!expectedDriveId||driveId(target)!==expectedDriveId)throw new Error('Chuyển hướng tải Google Drive không hợp lệ.');
+        url=target;
+      }else{
+        const checked=publicFileUrl(target.href),nextId=driveId(checked);
+        if(expectedDriveId&&nextId!==expectedDriveId)throw new Error('Trang tải chuyển sang một tệp khác. Hãy mở liên kết gốc để kiểm tra.');
+        expectedDriveId=nextId;url=checked;
+      }
+      continue;
     }
     if (!response.ok) { await response.body?.cancel(); throw new Error(`Trang nguồn từ chối truy cập (HTTP ${response.status}). Hãy mở trang nguồn để tải tệp rồi dùng Chọn tệp sách.`); }
     return { response, url };
@@ -48,29 +80,31 @@ async function limitedText(response: Response) {
   } finally { await reader.cancel().catch(() => {}); }
 }
 export function parseSource(html: string, base: string) {
-  let title = '', heading = '', author = '', depth = 0;
+  let title = '', heading = '', author = '', depth = 0,cell='',inCell=false,authorNext=false;
   const links: { url: string; label: string }[] = [], external: { url: string; label: string }[] = [];
   let anchor: { href: string; text: string; download: boolean } | null = null;
   const parser = new Parser({
     onopentag(name, attrs) {
       if (name === 'title') depth = 1;
       if (name === 'h1') depth = 2;
+      if(name==='td'||name==='th'){inCell=true;cell='';}
       if (name === 'meta') {
         if (attrs.property === 'og:title') title = attrs.content || title;
         if (['author', 'book:author'].includes(attrs.name || attrs.property)) author = attrs.content || author;
       }
       if (name === 'a' && attrs.href) anchor = { href: attrs.href, text: '', download: 'download' in attrs || /\.(epub|pdf|docx|txt)([?#]|$)/i.test(attrs.href) };
     },
-    ontext(text) { if (depth === 1 && !title) title += text; if (depth === 2) heading += text; if (anchor) anchor.text += text; },
+    ontext(text) { if (depth === 1 && !title) title += text; if (depth === 2) heading += text; if (anchor) anchor.text += text;if(inCell)cell+=text; },
     onclosetag(name) {
       if (name === 'title' || name === 'h1') depth = 0;
+      if(name==='td'||name==='th'){const label=cell.replace(/\s+/g,' ').trim();if(/^Tác giả\s*:?$/iu.test(label))authorNext=true;else if(authorNext){if(label&&!author)author=label;authorNext=false;}inCell=false;}
       if (name === 'a' && anchor) {
         if (anchor.download || /tải|download|epub|pdf/i.test(anchor.text)) {
           try {
             const url = new URL(anchor.href, base);
             if (url.protocol === 'https:' && !url.username && !url.password) {
               const item = { url: url.href, label: anchor.text.trim().slice(0, 160) || url.pathname.split('/').pop() || 'Tệp sách' };
-              if (HOSTS.has(url.hostname)) { sourceUrl(url.href); links.push(item); }
+              if (HOSTS.has(url.hostname)||DRIVE_HOSTS.has(url.hostname)) { const checked=publicFileUrl(url.href);links.push({...item,url:checked.href}); }
               else external.push(item);
             }
           } catch { /* Drop unsafe/malformed source links. */ }
@@ -91,14 +125,15 @@ export async function sourceRequest(request: Request, download: boolean) {
     const raw = await request.text(); if (raw.length > 5000) return reply({ error: 'Liên kết quá dài.' }, 400);
     const body = JSON.parse(raw); if (typeof body.url !== 'string') return reply({ error: 'Thiếu liên kết trang sách.' }, 400);
     let url: URL;
-    try { url = sourceUrl(body.url); } catch { return reply({ error: 'Chỉ nhận liên kết HTTPS từ dtv-ebook.com.vn.' }, 400); }
-    const fetched = await follow(url); url = fetched.url; const response = fetched.response;
+    try { url = publicFileUrl(body.url); } catch { return reply({ error: 'Chỉ nhận liên kết HTTPS từ dtv-ebook.com.vn hoặc tệp Google Drive công khai.' }, 400); }
+    const fetched = await follow(url,AbortSignal.any([request.signal,AbortSignal.timeout(60000)]),true); url = fetched.url; const response = fetched.response;
     const name = fileName(url, response);
     if (!download) {
       if (name) { await response.body?.cancel(); return reply({ title: name.replace(/\.[^.]+$/, ''), author: '', links: [{ url: url.href, label: name }], external: [] }); }
+      if(DRIVE_HOSTS.has(url.hostname)){await response.body?.cancel();return reply({error:'Google Drive chưa trả về tệp công khai hoặc đang yêu cầu đăng nhập/xác nhận. Hãy mở liên kết gốc để kiểm tra quyền truy cập.'},422);}
       return reply(parseSource(await limitedText(response), url.href));
     }
-    if (!name) { await response.body?.cancel(); return reply({ error: 'Liên kết này chưa trả về tệp EPUB/PDF/DOCX/TXT. Hãy chọn liên kết tải trực tiếp hoặc tải qua trình duyệt rồi nhập tệp.' }, 422); }
+    if (!name) { await response.body?.cancel(); return reply({ error: 'Nguồn chưa trả về tệp EPUB/PDF/DOCX/TXT công khai. Hãy mở liên kết gốc để kiểm tra; trang đăng nhập hoặc xác nhận tải không được nhập thành sách.' }, 422); }
     if (Number(response.headers.get('content-length') || 0) > LIMIT) { await response.body?.cancel(); return reply({ error: 'Tệp tối đa 50 MB.' }, 413); }
     let bytes = 0;
     const stream = response.body?.pipeThrough(new TransformStream<Uint8Array, Uint8Array>({ transform(chunk, controller) {

@@ -49,3 +49,9 @@ it.each(['/languages','/translate'])('rejects LibreTranslate redirects from %s',
   const response=await mf.dispatchFetch('http://localhost/api/translate',request);
   expect(response.status).toBe(502);expect(await response.json()).not.toHaveProperty('text');expect(calls).toEqual(redirectPath==='/languages'?['/languages']:['/languages','/translate']);
 });
+it('downloads a public Drive file through validated redirects in workerd',async()=>{
+ const calls:string[]=[];
+ const mf=runtime(req=>{calls.push(req.url);return calls.length===1?new RuntimeResponse(null,{status:303,headers:{Location:'https://drive.usercontent.google.com/download?id=15zlSM76mB03rLgU9QLSOCT5M55Tqoa12'}}):new RuntimeResponse('%PDF-1.6',{headers:{'Content-Type':'application/pdf','Content-Disposition':"attachment; filename*=UTF-8''Con%20C%C3%B3%20Th%E1%BB%83.pdf"}});});
+ const response=await mf.dispatchFetch('http://localhost/api/source/download',{method:'POST',headers:{Origin:'http://localhost'},body:JSON.stringify({url:'https://docs.google.com/uc?id=15zlSM76mB03rLgU9QLSOCT5M55Tqoa12'})});
+ expect(response.status).toBe(200);expect(await response.text()).toBe('%PDF-1.6');expect(decodeURIComponent(response.headers.get('X-Book-Filename')!)).toBe('Con Có Thể.pdf');expect(calls).toHaveLength(2);
+});

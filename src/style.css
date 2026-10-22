@@ -2010,3 +2010,6 @@ body.reading-paged .app,body.reading-paged .app>main { height:100dvh;min-height:
 @media(max-width:600px){.reader.is-paged{padding:62px 14px 50px;}.desktop-page-buttons{display:none;}.is-paged .reader-page-status{max-width:calc(100vw - 24px);bottom:12px;}.paged-title{font-size:12px;left:62px;right:128px;}.reader-mobile-menu{left:9px;}}
 /* Dialogs stay above the reader controls and navigation drawer. */
 .overlay { z-index:150; }
+
+.source-catalog li { display: flex; flex-direction: column; align-items: flex-start; gap: .5rem; padding: .85rem 0; border-bottom: 1px solid var(--border, #d9dfd5); }
+.source-catalog a { overflow-wrap: anywhere; }

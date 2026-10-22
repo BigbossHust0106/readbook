@@ -1341,9 +1341,10 @@ function ImportModal({
     const fromFile=bookFileMetadata(next.name),guess=sourceTitle?sourceAuthor?{title:sourceTitle.trim(),author:sourceAuthor.trim()}:splitBookName(sourceTitle):{...fromFile,author:sourceAuthor.trim()||fromFile.author};
     resetPdf();setFirstPage(1);setLastPage('');setFile(next);
     if(next.size>MAX_FILE)setError('Tệp tối đa 50 MB.');
-    if(!title.trim()||title===suggested.current.title)setTitle(guess.title);
-    if(!author.trim()||author===suggested.current.author)setAuthor(guess.author);
+    const selected={title:!title.trim()||title===suggested.current.title?guess.title:title,author:!author.trim()||author===suggested.current.author?guess.author:author};
+    setTitle(selected.title);setAuthor(selected.author);
     suggested.current=guess;
+    return selected;
   }
   function splitEnteredTitle(){
     if(author.trim()&&author!==suggested.current.author)return;
@@ -1399,7 +1400,13 @@ function ImportModal({
       <p className="muted">
         Tệp gốc được giữ riêng. PDF/OCR xử lý trên thiết bị; khi dùng chế độ cloud, tệp gốc và văn bản sẽ được lưu vào tài khoản của bạn.
       </p>
-      <SourceImport onBusy={setBusy} disabled={busy} onFile={chooseFile} />
+      <SourceImport onBusy={setBusy} disabled={busy} onFile={async (next, sourceTitle, sourceAuthor, autoImport) => {
+        const metadata=chooseFile(next,sourceTitle,sourceAuthor);
+        if(autoImport&&!/\.pdf$/i.test(next.name)){
+          const book=await importDocument(next,'',{...metadata,language,genre});
+          await onImport(book,next);
+        }
+      }} />
       <FileDropZone file={file} disabled={busy} onError={setError} onFile={chooseFile}/>
       {file ? (
         <button className="text-button" disabled={busy} onClick={() => { setFile(null); resetPdf(); }}>
