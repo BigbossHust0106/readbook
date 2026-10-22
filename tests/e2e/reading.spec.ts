@@ -1,3 +1,5 @@
+import {openSelection} from './helpers';
+import {selectionAction} from './helpers';
 import {navigate,openMenu,showTools,hideTools,readyPage} from './helpers';
 import { test, expect, type Page } from "@playwright/test";
 async function pasteBook(page: Page, title = "Sách kiểm thử", lang = "vi") {
@@ -25,9 +27,7 @@ test("import, manual translation, locked edit, note, position, vocabulary and pe
   await expect(page.locator(".paragraph-text").first()).toContainText(
     "Xin chào thế giới.",
   );
-  await page
-    .getByRole("button", { name: "Sửa bản dịch và ghi chú đoạn 1" })
-    .click();
+  await selectionAction(page,1,'Ghi chú / bản dịch');
   await page
     .getByRole("textbox", { name: "Bản dịch thủ công" })
     .fill("Hello world.");
@@ -38,9 +38,7 @@ test("import, manual translation, locked edit, note, position, vocabulary and pe
   await expect(page.locator(".translated").first()).toContainText(
     "Hello world.",
   );
-  await page
-    .getByRole("button", { name: "Sửa bản dịch và ghi chú đoạn 1" })
-    .click();
+  await selectionAction(page,1,'Ghi chú / bản dịch');
   await page
     .getByRole("button", { name: "Khóa bản dịch", exact: true })
     .click();
@@ -48,11 +46,11 @@ test("import, manual translation, locked edit, note, position, vocabulary and pe
     page.getByRole("textbox", { name: "Bản dịch thủ công" }),
   ).toBeDisabled();
   await page.getByRole("button", { name: "Đóng", exact: true }).click();
-  await page.getByRole("button", { name: "Lưu từ từ đoạn 1" }).click();
+  await openSelection(page,1);
   await page.getByRole("textbox", { name: "Từ muốn lưu" }).fill("Xin chào");
   await page.getByRole("textbox", { name: "Nghĩa của từ" }).fill("Hello");
   await page.getByRole("button", { name: "Lưu từ", exact: true }).click();await page.getByRole("button",{name:"Đóng tra từ"}).click();
-  await page.getByRole("button", { name: "Lưu vị trí đoạn 2" }).click();
+  await selectionAction(page,2,'Lưu vị trí đọc');
   await expect(page.locator(".paragraph").nth(1)).toHaveClass(/current/);
   await page.reload();await readyPage(page);
   await expect(page.locator('.reading-paper:not(.viewport-measure) [data-paragraph-id]').first()).toHaveAttribute('data-paragraph','1');

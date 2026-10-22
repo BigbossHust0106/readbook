@@ -1,3 +1,4 @@
+import {googleTranslate} from "./googleTranslate";
 import {speechRequest} from "./speech";
 import { sourceRequest, sourceCatalog } from "./source";
 import { myMemory } from "./mymemory";
@@ -71,6 +72,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   if (url.pathname === "/api/health") return json({ ok: true });
   if (url.pathname === "/api/capabilities") {
     try {
+      if (env.TRANSLATION_ENABLED === 'true' && env.TRANSLATION_PROVIDER === 'google') return json({configured:true,provider:'Google Translate',pairs:supported.map(source=>({source,targets:supported.filter(t=>t!==source)})),reason:'Dịch ngay trong trình đọc qua Google. Cần Internet; endpoint công khai có thể giới hạn lượt hoặc thay đổi. Không dùng hạn mức MyMemory.'});
       if (env.TRANSLATION_ENABLED === "true" && env.TRANSLATION_PROVIDER === "mymemory") return json({
         configured: true, provider: "MyMemory", pairs: supported.map(source => ({ source, targets: supported.filter(t => t !== source) })),
         reason: "API chính thức MyMemory, miễn phí có hạn mức (thông thường 5.000 ký tự/ngày theo IP dịch vụ). Tạm dừng khi hết hạn mức; không phải dịch không giới hạn.",
@@ -98,12 +100,13 @@ export async function handle(request: Request, env: Env): Promise<Response> {
       });
     }
   }
-  if (url.pathname === "/api/translate") {
+  if (url.pathname === "/api/translate" || url.pathname === "/api/translate/google") {
     if (request.method !== "POST")
       return json({ error: "Chỉ hỗ trợ POST." }, 405);
     // Same-origin browser writes. Never trust a client-provided provider URL or key.
     if (request.headers.get("Origin") !== url.origin)
       return json({ error: "Nguồn yêu cầu không được phép." }, 403);
+    if (env.TRANSLATION_ENABLED === "true" && (env.TRANSLATION_PROVIDER === "google" || url.pathname.endsWith("/google"))) return googleTranslate(request);
     if (env.TRANSLATION_ENABLED === "true" && env.TRANSLATION_PROVIDER === "mymemory") return myMemory(request);
     let base: string | null;
     try {

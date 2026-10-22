@@ -3,6 +3,7 @@ import type {Book} from './model';
 const key=(p:Book['position'])=>`${p.chapter}:${p.paragraph}:${p.offset||0}`;
 export function useReadingProgress({book,paper,ready,onProgress,onRemote}:{book:Book;paper:RefObject<HTMLDivElement|null>;ready:boolean;onProgress:(p:Book['position'])=>Promise<void>;onRemote:(p:Book['position'])=>void}) {
   const current=useRef({book,onProgress,onRemote});current.current={book,onProgress,onRemote};
+  const lastPosition=useRef(book.position);
   const own=useRef(key(book.position)),skip=useRef(Date.now()+1200),timer=useRef<ReturnType<typeof setTimeout>|null>(null),started=useRef(false);
   function restore(position:Book['position']) {
     const p=current.current.book.chapters[position.chapter]?.paragraphs[position.paragraph];if(!p)return;
@@ -15,12 +16,13 @@ export function useReadingProgress({book,paper,ready,onProgress,onRemote}:{book:
     } else article.scrollIntoView({block:'center',behavior:'instant'});
   }
   async function record(position:Book['position']) {
-    own.current=key(position);skip.current=Date.now()+400;
+    lastPosition.current=position;own.current=key(position);skip.current=Date.now()+400;
     if(timer.current){clearTimeout(timer.current);timer.current=null;}
     await current.current.onProgress(position);
   }
   function capture():Book['position']|null {
     if(!paper.current||Date.now()<skip.current||!getSelection()?.isCollapsed)return null;
+    if(paper.current.classList.contains("mode-paged"))return lastPosition.current;
     const anchor=Math.min(160,innerHeight*.3);
     const rows=Array.from(paper.current.querySelectorAll<HTMLElement>('[data-paragraph-id]'));
     const article=rows.find(el=>{const r=el.getBoundingClientRect();return r.bottom>anchor&&r.top<innerHeight-35;});
@@ -46,7 +48,7 @@ export function useReadingProgress({book,paper,ready,onProgress,onRemote}:{book:
     if(p.chapter||p.paragraph||p.offset){const handle=setTimeout(()=>restore(p),100);return()=>clearTimeout(handle);}
   },[ready]);
   useEffect(()=>{
-    const incoming=key(book.position);if(incoming===own.current||!ready)return;own.current=incoming;
+    const incoming=key(book.position);if(incoming===own.current||!ready)return;own.current=incoming;lastPosition.current=book.position;
     skip.current=Date.now()+1400;current.current.onRemote(book.position);
     const handle=setTimeout(()=>restore(book.position),100);return()=>clearTimeout(handle);
   },[book.position.chapter,book.position.paragraph,book.position.offset,ready]);

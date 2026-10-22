@@ -3,10 +3,10 @@ import type { Lang } from './model';
 import { speechChunks } from './speech';
 export type SpeechProvider = 'google' | 'device';
 type Phase = 'idle' | 'loading' | 'playing' | 'paused' | 'error';
-type Session = { chunks: string[]; index: number; language: Lang; provider: SpeechProvider; abort: AbortController; urls: Set<string>; cache: Map<number, Promise<string>> };
-export function useSpeechReader(provider: SpeechProvider, rate: number, voiceURI: string) {
+type Session = { chunks: string[]; index: number; language: Lang; provider: SpeechProvider; abort: AbortController; urls: Set<string>; cache: Map<number, Promise<string>>; playing:boolean };
+export function useSpeechReader(provider: SpeechProvider, rate: number, voiceURI: string, volume=1, pitch=1, onComplete?:()=>void) {
   const audio = useRef<HTMLAudioElement>(null), session = useRef<Session | null>(null), utterance = useRef<SpeechSynthesisUtterance | null>(null);
-  const settings = useRef({ provider, rate, voiceURI }); settings.current = { provider, rate, voiceURI };
+  const settings = useRef({ provider, rate, voiceURI,volume,pitch,onComplete }); settings.current = { provider, rate, voiceURI,volume,pitch,onComplete };
   const [phase, setPhase] = useState<Phase>('idle'), [error, setError] = useState(''), [label, setLabel] = useState(''), [part, setPart] = useState('');
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const phaseRef = useRef<Phase>('idle'), watchdog = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -43,12 +43,12 @@ export function useSpeechReader(provider: SpeechProvider, rate: number, voiceURI
   }
   async function pump(current: Session, index: number) {
     if (session.current !== current) return;
-    if (index >= current.chunks.length) { stop(); return; }
-    current.index = index; state('loading'); setError(''); setPart(`${index + 1}/${current.chunks.length}`);
+    if (index >= current.chunks.length) { const complete=settings.current.onComplete;stop();complete?.(); return; }
+    current.index = index; current.playing=false;state('loading'); setError(''); setPart(`${index + 1}/${current.chunks.length}`);
     if (current.provider === 'google') {
       try {
         const url = await load(current, index); if (session.current !== current || !audio.current) return;
-        audio.current.src = url; audio.current.playbackRate = settings.current.rate;
+        audio.current.loop=false;audio.current.volume=settings.current.volume;audio.current.src = url; audio.current.playbackRate = settings.current.rate;
         await audio.current.play();
         if (session.current !== current) return;
         if (index + 1 < current.chunks.length) void load(current, index + 1).catch(() => {});
@@ -76,7 +76,7 @@ export function useSpeechReader(provider: SpeechProvider, rate: number, voiceURI
     const voice = matches.find(v => v.voiceURI === settings.current.voiceURI) || matches.find(v => v.default) || matches[0];
     if (!voice) { fail(current, 'Thiết bị chưa có giọng cho ngôn ngữ sách. Chọn Google trực tuyến hoặc cài thêm giọng đọc trên thiết bị.'); return; }
     const next = new SpeechSynthesisUtterance(current.chunks[index]); utterance.current = next;
-    next.lang = { vi: 'vi-VN', zh: 'zh-CN', en: 'en-US' }[current.language]; next.voice = voice; next.rate = settings.current.rate;
+    next.lang = { vi: 'vi-VN', zh: 'zh-CN', en: 'en-US' }[current.language]; next.voice = voice; next.rate = settings.current.rate;next.volume=settings.current.volume;next.pitch=settings.current.pitch;
     next.onstart = () => { if (session.current === current && utterance.current===next) { clearTimeout(watchdog.current); state('playing'); } };
     next.onend = () => { if (session.current === current && utterance.current===next) { clearTimeout(watchdog.current); utterance.current = null; void pumpRef.current(current, index + 1); } };
     next.onerror = () => {if(utterance.current===next)fail(current, 'Giọng thiết bị không phát được. Hãy chọn Google trực tuyến hoặc kiểm tra giọng đã cài.');};
@@ -91,19 +91,20 @@ export function useSpeechReader(provider: SpeechProvider, rate: number, voiceURI
   }, []);
   useEffect(() => {
     const node = audio.current; if (!node) return;
-    const play = () => { if (session.current?.provider === 'google') { setError(''); state('playing'); } };
+    const play = () => { if (session.current?.provider === 'google') {session.current.playing=true;setError(''); state('playing'); } };
     const pause = () => { if (session.current?.provider === 'google' && phaseRef.current === 'playing' && !node.ended) state('paused'); };
-    const ended = () => { const current = session.current; if (current?.provider === 'google') void pumpRef.current(current, current.index + 1); };
+    const ended = () => { const current = session.current; if (current?.provider === 'google'&&current.playing) {current.playing=false;void pumpRef.current(current, current.index + 1);} };
     const error = () => { const current = session.current; if (current?.provider === 'google' && node.getAttribute('src')) fail(current, 'Không phát được MP3. Bấm thử đọc lại hoặc kiểm tra âm lượng của thiết bị.'); };
     node.addEventListener('play', play); node.addEventListener('pause', pause); node.addEventListener('ended', ended); node.addEventListener('error', error);
     return () => { node.removeEventListener('play', play); node.removeEventListener('pause', pause); node.removeEventListener('ended', ended); node.removeEventListener('error', error); stop(false); };
   }, []);
   useEffect(() => { if (audio.current) audio.current.playbackRate = rate; }, [rate]);
-  useEffect(() => { stop(); }, [provider]);
+  useEffect(() => { if(audio.current)audio.current.volume=volume; },[volume]);
+  useEffect(() => { stop(); }, [provider,voiceURI]);
   return { audio, phase, error, label, part, voices,
     start(text: string, language: Lang, label: string) {
       stop(); const chunks = speechChunks(text); if (!chunks.length) return;
-      const next: Session = { chunks, index: 0, language, provider: settings.current.provider, abort: new AbortController(), urls: new Set(), cache: new Map() };
+      const next: Session = { chunks, index: 0, language, provider: settings.current.provider, abort: new AbortController(), urls: new Set(), cache: new Map(),playing:false };
       session.current = next; setLabel(label); void pump(next, 0);
     },
     stop: () => stop(),

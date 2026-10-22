@@ -7,10 +7,10 @@ async function add(page: import('@playwright/test').Page, text: string) {
   await page.getByRole('button', { name: 'Nhập & lưu sách', exact: true }).click();
   await page.getByRole('button', { name: /Sách đọc liền/ }).click();
 }
-test('page character limit, continuous reading and position persist',async({page})=>{
+test('viewport pagination, continuous reading and position persist',async({page})=>{
  await page.goto('/');await add(page,'Chương 1\n\n'+('Một sách mở ra thế giới. '.repeat(100))+'\n\nChương 2\n\nNội dung chương sau.');await readyPage(page);await showTools(page);
- await page.getByLabel('Số ký tự mỗi trang').fill('500');await hideTools(page);await readyPage(page);await page.getByRole('button',{name:'Trang sau',exact:true}).click();await expect(page.locator('.reader-page-status')).toContainText('Trang 2/');
- await page.reload();await readyPage(page);await expect(page.locator('.reader-page-status')).toContainText('Trang 2/');await showTools(page);await expect(page.getByLabel('Số ký tự mỗi trang')).toHaveValue('500');await page.getByLabel('Chế độ đọc').selectOption('continuous');await hideTools(page);
+ await hideTools(page);await readyPage(page);await page.getByRole('button',{name:'Trang sau',exact:true}).click();await expect(page.locator('.reader-page-status')).toContainText('Trang 2/');
+ await page.reload();await readyPage(page);await expect(page.locator('.reader-page-status')).toContainText('Trang 2/');await showTools(page);await page.getByLabel('Chế độ đọc').selectOption('continuous');await hideTools(page);
  await page.locator('.reading-sentinel').scrollIntoViewIfNeeded();await expect(page.locator('.reading-paper:not(.viewport-measure)')).toContainText('Nội dung chương sau.');
 });
 test('visible bilingual translation saves machine results and resumes remaining paragraphs', async ({ page }) => {

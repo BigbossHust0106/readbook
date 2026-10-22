@@ -9,12 +9,12 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": true,
   },
-  "vars": { "TRANSLATION_ENABLED": "true", "TRANSLATION_PROVIDER": "mymemory", "LOCAL_TRANSLATION": "false" },
+  "vars": { "TRANSLATION_ENABLED": "true", "TRANSLATION_PROVIDER": "google", "LOCAL_TRANSLATION": "false" },
   "observability": { "enabled": false },
   "env": {
     "production": {
       "name": "readbook",
-      "vars": { "TRANSLATION_ENABLED": "true", "TRANSLATION_PROVIDER": "mymemory", "LOCAL_TRANSLATION": "false" },
+      "vars": { "TRANSLATION_ENABLED": "true", "TRANSLATION_PROVIDER": "google", "LOCAL_TRANSLATION": "false" },
     },
   },
 }

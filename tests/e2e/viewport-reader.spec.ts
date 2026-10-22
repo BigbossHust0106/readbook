@@ -1,3 +1,4 @@
+import {selectionAction} from './helpers';
 import {test,expect,type Page} from '@playwright/test';
 import {showTools,hideTools,readyPage,openMenu} from './helpers';
 async function add(page:Page,text:string){await page.goto('/');await page.getByRole('button',{name:'Thêm sách',exact:true}).click();await page.getByLabel('Nội dung sách').fill(text);await page.getByRole('textbox',{name:'Tên sách',exact:true}).fill('Một màn hình một trang');await page.getByRole('button',{name:'Nhập & lưu sách',exact:true}).click();await page.getByRole('button',{name:/Một màn hình một trang/}).click();await readyPage(page);}
@@ -29,7 +30,7 @@ test('failed selection translation can retry edited text and preserves a manuall
  await popup.getByLabel('Từ muốn lưu').fill('Edited selection');await popup.getByRole('button',{name:'Dịch',exact:true}).click();await expect.poll(()=>sent.length).toBe(2);
  await popup.getByLabel('Nghĩa của từ').fill('Nghĩa tự nhập cần giữ');await reply();await expect(popup.getByRole('button',{name:'Dùng bản dịch',exact:true})).toBeVisible();await expect(popup.getByLabel('Nghĩa của từ')).toHaveValue('Nghĩa tự nhập cần giữ');expect(sent).toEqual(['Reading','Edited selection']);
  await popup.getByRole('button',{name:'Dùng bản dịch',exact:true}).click();await expect(popup.getByLabel('Nghĩa của từ')).toHaveValue('Bản dịch sau khi thử lại');await popup.getByRole('button',{name:'Lưu từ',exact:true}).click();await expect(popup).toContainText('Đã lưu từ');
- await expect(popup.getByRole('link',{name:'Google Dịch'})).toHaveAttribute('href',/text=Edited%20selection/);
+ await expect(popup.getByRole('button',{name:'Dịch bằng Google',exact:true})).toBeEnabled();await expect(popup.locator('a')).toHaveCount(0);
  const box=await popup.boundingBox();expect(box!.x).toBeGreaterThanOrEqual(0);expect(box!.x+box!.width).toBeLessThanOrEqual(390);await page.screenshot({path:'/tmp/readbook-translation-retry-mobile.png'});
 });
 test('editing selected text cancels an old response and malformed replies remain retryable',async({page})=>{
@@ -46,8 +47,8 @@ test('a stalled lookup times out, keeps the draft, and allows a fresh retry',asy
 });
 test('long bilingual fragments fit a narrow page and preserve translated text across pages',async({page})=>{
  const source='Đọc sách mỗi ngày. '.repeat(75).trim(),translation='Reading books can open new worlds and bring new ideas. '.repeat(90).trim();await add(page,source);
- await page.getByRole('button',{name:'Sửa bản dịch và ghi chú đoạn 1'}).click();await page.getByLabel('Bản dịch thủ công').fill(translation);await page.getByRole('button',{name:'Lưu thay đổi',exact:true}).click();await readyPage(page);
- await showTools(page);await page.getByLabel('Chiều rộng trang',{exact:true}).fill('560');await hideTools(page);await readyPage(page);const translated:string[]=[];
+ await selectionAction(page,1,'Ghi chú / bản dịch');await page.getByLabel('Bản dịch thủ công').fill(translation);await page.getByRole('button',{name:'Lưu thay đổi',exact:true}).click();await readyPage(page);
+ await showTools(page);await hideTools(page);await readyPage(page);const translated:string[]=[];
  for(let i=0;i<80;i++){await fits(page);translated.push((await page.locator('.reading-paper:not(.viewport-measure) .translated p').allTextContents()).join(''));const next=page.getByRole('button',{name:'Trang sau',exact:true});if(await next.isDisabled())break;await next.click();}
  expect(translated.join('')).toBe(translation);await page.screenshot({path:'/tmp/readbook-viewport-bilingual.png'});
 });

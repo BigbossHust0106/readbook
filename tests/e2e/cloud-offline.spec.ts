@@ -1,3 +1,5 @@
+import {openSelection} from './helpers';
+import {selectionAction} from './helpers';
 import {navigate,openMenu,showTools,hideTools,readyPage} from './helpers';
 import {test,expect,type BrowserContext,type Page} from '@playwright/test';
 import {isDeepStrictEqual} from 'node:util';
@@ -29,12 +31,12 @@ function backend(){
  return {attach,personal,collections,holdWrites:()=>{gate=new Promise<void>(r=>{release=r;});return ()=>{gate=null;release?.();};},setFail:(v:boolean)=>{fail=v;}};
 }
 async function open(page:Page){await page.goto('/');const card=page.getByRole('button',{name:/Sách cloud kiểm thử/}),reader=page.locator('.reading-paper:not(.viewport-measure)');await expect.poll(async()=>await card.isVisible()||await reader.isVisible()).toBe(true);if(await card.isVisible())await card.click();await expect(reader).toBeVisible();}
-async function note(page:Page,text:string){await page.getByRole('button',{name:'Sửa bản dịch và ghi chú đoạn 1'}).click();await page.getByRole('textbox',{name:'Ghi chú',exact:true}).fill(text);await page.getByRole('button',{name:'Lưu thay đổi',exact:true}).click();await expect(page.locator('.paragraph-note')).toContainText(text);}
+async function note(page:Page,text:string){await selectionAction(page,1,'Ghi chú / bản dịch');await page.getByRole('textbox',{name:'Ghi chú',exact:true}).fill(text);await page.getByRole('button',{name:'Lưu thay đổi',exact:true}).click();await expect(page.locator('.paragraph-note')).toContainText(text);}
 async function settings(page:Page){await page.evaluate(()=>scrollTo(0,0));await navigate(page, 'Thư viện của tôi');await navigate(page, /Cài đặt & kết nối/);}
 test('offline notes, manual translation and vocabulary survive reload and then sync',async({page,context})=>{
  const server=backend();await server.attach(context);await open(page);await context.setOffline(true);
- await page.getByRole('button',{name:'Sửa bản dịch và ghi chú đoạn 1'}).click();await page.getByRole('textbox',{name:'Ghi chú',exact:true}).fill('Ghi chú ngoại tuyến');await page.getByRole('textbox',{name:'Bản dịch thủ công'}).fill('Đọc sách mỗi ngày.');await page.getByRole('button',{name:'Lưu thay đổi',exact:true}).click();
- await page.getByRole('button',{name:'Lưu từ từ đoạn 1'}).click();await page.getByLabel('Từ muốn lưu').fill('Reading');await page.getByLabel('Nghĩa của từ').fill('Đọc');await page.getByRole('button',{name:'Lưu từ',exact:true}).click();await page.getByRole('button',{name:'Đóng tra từ'}).click();await expect(page.getByRole('dialog')).toHaveCount(0);
+ await selectionAction(page,1,'Ghi chú / bản dịch');await page.getByRole('textbox',{name:'Ghi chú',exact:true}).fill('Ghi chú ngoại tuyến');await page.getByRole('textbox',{name:'Bản dịch thủ công'}).fill('Đọc sách mỗi ngày.');await page.getByRole('button',{name:'Lưu thay đổi',exact:true}).click();
+ await openSelection(page,1);await page.getByLabel('Từ muốn lưu').fill('Reading');await page.getByLabel('Nghĩa của từ').fill('Đọc');await page.getByRole('button',{name:'Lưu từ',exact:true}).click();await page.getByRole('button',{name:'Đóng tra từ'}).click();await expect(page.getByRole('dialog')).toHaveCount(0);
  expect(server.personal().overrides).toEqual({});expect(server.collections.vocabulary.size).toBe(0);
  server.setFail(true);await context.setOffline(false);await page.reload();await expect(page.locator('.paragraph-note')).toContainText('Ghi chú ngoại tuyến');await expect(page.locator('.translated')).toContainText('Đọc sách mỗi ngày.');
  await settings(page);await expect(page.getByRole('region',{name:'Thay đổi chờ đồng bộ'})).toContainText('2 thay đổi chờ gửi');
@@ -54,22 +56,22 @@ test('two devices preserve conflicting notes until the reader explicitly chooses
 test('different field edits merge automatically between devices',async({browser})=>{
  const server=backend(),a=await browser.newContext(),b=await browser.newContext();try{
  await server.attach(a);await server.attach(b);const p=await a.newPage(),q=await b.newPage();await open(p);await open(q);await b.setOffline(true);await note(p,'Ghi chú máy thứ nhất');await expect.poll(()=>server.personal().overrides.paragraph?.note).toBe('Ghi chú máy thứ nhất');
- await q.getByRole('button',{name:'Tô sáng đoạn 1'}).click();await b.setOffline(false);await settings(q);await q.getByRole('button',{name:'Đồng bộ ngay',exact:true}).click();await expect(q.getByRole('region',{name:'Thay đổi chờ đồng bộ'})).toContainText('Không có thay đổi chờ gửi.');expect(server.personal().overrides.paragraph).toMatchObject({note:'Ghi chú máy thứ nhất',highlight:true});
+ await selectionAction(q,1,'Tô sáng');await b.setOffline(false);await settings(q);await q.getByRole('button',{name:'Đồng bộ ngay',exact:true}).click();await expect(q.getByRole('region',{name:'Thay đổi chờ đồng bộ'})).toContainText('Không có thay đổi chờ gửi.');expect(server.personal().overrides.paragraph).toMatchObject({note:'Ghi chú máy thứ nhất',highlight:true});
  }finally{await a.close();await b.close();}
 });
 
 test('reverting a note while its earlier save is in flight still saves the undo',async({page,context})=>{
  const server=backend();await server.attach(context);await open(page);const release=server.holdWrites();const sent=page.waitForRequest(r=>r.url().endsWith('/rpc/sync_personal_book_state'));
  await note(page,'Ghi chú sẽ hoàn tác');await sent;
- await page.getByRole('button',{name:'Sửa bản dịch và ghi chú đoạn 1'}).click();await page.getByRole('textbox',{name:'Ghi chú',exact:true}).fill('');await page.getByRole('button',{name:'Lưu thay đổi',exact:true}).click();await expect(page.locator('.paragraph-note')).toHaveCount(0);
+ await selectionAction(page,1,'Ghi chú / bản dịch');await page.getByRole('textbox',{name:'Ghi chú',exact:true}).fill('');await page.getByRole('button',{name:'Lưu thay đổi',exact:true}).click();await expect(page.locator('.paragraph-note')).toHaveCount(0);
  release();await settings(page);await page.getByRole('button',{name:'Đồng bộ ngay',exact:true}).click();await expect(page.getByRole('region',{name:'Thay đổi chờ đồng bộ'})).toContainText('Không có thay đổi chờ gửi.');expect(server.personal().overrides.paragraph?.note).toBeFalsy();
 });
 test('offline bookmarks and imported translations merge with another device note and reach both devices',async({browser})=>{
  const server=backend(),a=await browser.newContext(),b=await browser.newContext();try{
  await server.attach(a);await server.attach(b);const p=await a.newPage(),q=await b.newPage();await open(p);await open(q);await b.setOffline(true);
  await note(p,'Ghi chú từ thiết bị khác');await expect.poll(()=>server.personal().overrides.paragraph?.note).toBe('Ghi chú từ thiết bị khác');
- await q.getByRole('button',{name:'Thêm dấu trang đoạn 1',exact:true}).click();await showTools(q);await q.locator('.translation-panel summary').click();await q.getByRole('button',{name:'Nhập bản dịch có sẵn',exact:true}).click();const dialog=q.getByRole('dialog',{name:'Nhập và căn bản dịch'});await dialog.getByLabel('Nội dung bản dịch',{exact:true}).fill('Bản dịch nhập khi ngoại tuyến.');await dialog.getByRole('button',{name:'Đối chiếu bản dịch',exact:true}).click();await dialog.getByLabel('Tôi đã đối chiếu và đồng ý lưu các đoạn đã ghép').check();await dialog.getByRole('button',{name:'Lưu bản dịch đã ghép',exact:true}).click();
+ await selectionAction(q,1,'Lưu dấu trang');await showTools(q);await q.locator('.translation-panel summary').click();await q.getByRole('button',{name:'Nhập bản dịch có sẵn',exact:true}).click();const dialog=q.getByRole('dialog',{name:'Nhập và căn bản dịch'});await dialog.getByLabel('Nội dung bản dịch',{exact:true}).fill('Bản dịch nhập khi ngoại tuyến.');await dialog.getByRole('button',{name:'Đối chiếu bản dịch',exact:true}).click();await dialog.getByLabel('Tôi đã đối chiếu và đồng ý lưu các đoạn đã ghép').check();await dialog.getByRole('button',{name:'Lưu bản dịch đã ghép',exact:true}).click();
  await b.setOffline(false);await settings(q);await q.getByRole('button',{name:'Đồng bộ ngay',exact:true}).click();await expect(q.getByRole('region',{name:'Thay đổi chờ đồng bộ'})).toContainText('Không có thay đổi chờ gửi.');expect(server.personal().overrides.paragraph).toMatchObject({note:'Ghi chú từ thiết bị khác',bookmarks:{'0':{offset:0}},translations:{en:{text:'Bản dịch nhập khi ngoại tuyến.',provider:'import',locked:true}}});
- await p.reload();await readyPage(p);await showTools(p);await p.getByLabel('Kiểu đọc',{exact:true}).selectOption('interleaved');await hideTools(p);await readyPage(p);await expect(p.locator('.reading-paper:not(.viewport-measure) .translated')).toContainText('Bản dịch nhập khi ngoại tuyến.');await openMenu(p);await p.locator('.reader-sidebar-panel').getByRole('button',{name:'Dấu trang',exact:true}).click();await expect(p.getByRole('region',{name:'Dấu trang của bạn'}).locator('.saved-bookmark')).toHaveCount(1);
+ await p.reload();await readyPage(p);await showTools(p);await p.getByLabel('Kiểu đọc',{exact:true}).selectOption('interleaved');await hideTools(p);await readyPage(p);await expect(p.locator('.reading-paper:not(.viewport-measure) .translated')).toContainText('Bản dịch nhập khi ngoại tuyến.');await showTools(p);await p.getByRole('button',{name:'Dấu trang',exact:true}).click();await expect(p.getByRole('region',{name:'Dấu trang của bạn'}).locator('.saved-bookmark')).toHaveCount(1);
  }finally{await a.close();await b.close();}
 });

@@ -32,9 +32,9 @@ test('opens the saved page without scanning earlier chapters; turns both ways wh
  await page.getByRole('button',{name:'Trang trước',exact:true}).click();await readyPage(page);const previous=await first(page);expect(previous.chapter).toBe(30);expect(previous.paragraph===7?previous.start<200:previous.paragraph<7).toBe(true);await fits(page);
  console.log(JSON.stringify({firstPageMs:milliseconds,layoutProbesBeforeFirstPage:probes,bookCharacters:characters,backgroundPaused:true}));
 });
-test('font, width, character budget and orientation changes prioritize the same reading position and cancel old jobs',async({page})=>{
+test('font and orientation changes prioritize the same reading position and cancel old jobs',async({page})=>{
  await page.setViewportSize({width:390,height:844});await holdBackground(page);await longBook(page);
- await showTools(page);await page.getByLabel('Cỡ chữ',{exact:true}).fill('28');await page.getByLabel('Chiều rộng trang',{exact:true}).fill('560');await page.getByLabel('Số ký tự mỗi trang').fill('500');await hideTools(page);await readyPage(page);
+ await showTools(page);await page.getByLabel('Cỡ chữ',{exact:true}).fill('28');await hideTools(page);await readyPage(page);
  expect(await first(page)).toMatchObject({chapter:30,paragraph:7,start:200});await expect(page.locator('.page-frame')).toHaveAttribute('data-pagination-complete','false');await fits(page);
  await page.setViewportSize({width:844,height:390});await readyPage(page);expect(await first(page)).toMatchObject({chapter:30,paragraph:7,start:200});await fits(page);
  await page.getByRole('button',{name:'Trang sau',exact:true}).click();await readyPage(page);const next=await first(page);

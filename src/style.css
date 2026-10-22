@@ -2027,3 +2027,26 @@ body.reading-paged .app,body.reading-paged .app>main { height:100dvh;min-height:
 @media(max-width:600px){.reader-listen-button{top:9px;right:151px;}.is-paged .paged-title{right:202px;}.desktop-page-buttons{left:12px;right:12px;}.reader.is-paged:has(.desktop-page-buttons) .reader-page-status{left:66px;right:66px;}.speech-player{bottom:62px;}}
 
 .app:has(.speech-player:not([hidden])) .toast { top:70px;bottom:auto; }
+/* Global menu actions stay fixed; only the current book's chapters scroll. */
+.app > .sidebar,body.reading-mode .app > .sidebar { height:100dvh;overflow:hidden;display:flex;flex-direction:column;gap:0; }
+.sidebar .brand,.sidebar .workspace-label,.sidebar nav,.sidebar .storage { flex-shrink:0; }
+.sidebar .workspace-label { margin:14px 0 4px; }
+.sidebar .brand { padding-bottom:8px; }
+.sidebar nav { margin-top:4px;gap:2px; }
+.sidebar nav button { padding:9px 12px; }
+#reader-sidebar-content { flex:1;min-height:0;display:flex;flex-direction:column; }
+.reader-sidebar-panel { flex:1;min-height:0;display:flex;flex-direction:column;margin-top:10px;padding-top:10px; }
+.reader-sidebar-panel header { flex-shrink:0;padding-bottom:8px; }
+.reader-sidebar-panel header strong,.reader-sidebar-panel header small { display:block; }
+.reader-sidebar-panel header small { overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#798872; }
+.chapter-scroll { flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain; }
+.chapter-scroll .flyout-item { margin-bottom:6px; }
+.selection-actions { display:flex;flex-wrap:wrap;gap:5px;margin:10px 0; }
+.selection-actions button { padding:7px 10px;font-size:12px; }
+.word-popover { max-height:min(75dvh,580px);overflow-y:auto; }
+.speech-player label { font-size:12px;margin:6px 0; }
+@media(max-height:650px){.sidebar .workspace-label,.sidebar .storage{display:none;}.sidebar .brand{padding-bottom:0;}.sidebar nav button{padding:5px 10px;}.sidebar .brand strong{font-size:22px;}}
+/* Keep navigation reachable on every application tab, even far down a page. */
+.app > main > .topbar { position:sticky;top:0;z-index:80;background:#fffdf8;padding-left:76px; }
+.topbar .mobile-menu { position:fixed;top:10px;left:12px;z-index:85;padding:9px;background:#fffdf8;box-shadow:0 2px 10px #183c3020; }
+.app > .sidebar { position:fixed;left:0;top:0; }

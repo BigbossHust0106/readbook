@@ -64,5 +64,5 @@ export async function myMemory(request: Request): Promise<Response> {
       parts.push(decodeHTML(translated).trim());
     }
     return reply({ text: parts.join(target === 'zh' ? '' : ' '), provider: 'MyMemory', at: new Date().toISOString() });
-  } catch { return reply({ error: 'Không kết nối được nguồn dịch MyMemory. Hãy thử dịch lại hoặc mở Google Dịch. Nghĩa bạn tự nhập vẫn được giữ.' }, 502); }
+  } catch { return reply({ error: 'Không kết nối được nguồn dịch MyMemory. Hãy thử dịch lại hoặc bấm Dịch bằng Google ngay trong trình đọc. Nghĩa bạn tự nhập vẫn được giữ.' }, 502); }
 }
