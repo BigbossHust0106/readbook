@@ -1841,7 +1841,7 @@ function Reader({
         if(!result.saved)throw new Error('Không có đoạn mới để lưu. Những đoạn đã có bản dịch hoặc đã khóa vẫn được giữ.');
         await update(result.book);setTarget(language);setLayout('interleaved');setFloatingTools(false);notify(`Đã nhập ${result.saved} đoạn dịch; giữ ${result.skipped} đoạn đã có hoặc đã khóa.`);
       }}/>}
-      {wordHit&&<WordPopover key={`${wordHit.source}:${wordHit.term}`} word={wordHit} target={wordHit.source===book.language?target:book.language} actions={<>
+      {wordHit&&<WordPopover key={`${wordHit.source}:${wordHit.term}`} word={wordHit} provider={cap?.provider} target={wordHit.source===book.language?target:book.language} actions={<>
         <button onClick={()=>void update(putBookmark(latest.current,selectedPosition())).then(()=>notify('Đã lưu dấu trang.')).catch(e=>notify(errorText(e)))}>Lưu dấu trang</button>
         <button onClick={()=>{const position=selectedPosition();void readingProgress.record(position).catch(e=>notify(errorText(e)));notify('Đã lưu vị trí đọc.');}}>Lưu vị trí đọc</button>
         <button onClick={()=>void patchParagraph(wordHit.paragraphId,p=>({...p,highlight:!p.highlight})).catch(e=>notify(errorText(e)))}>Tô sáng</button>

@@ -20,7 +20,7 @@ Wrangler phục vụ cả frontend và `/api`. Phát triển có HMR: giữ Work
 - Nhập EPUB theo thứ tự spine, TXT UTF-8, DOCX và HTML; văn bản dán. Tệp tối đa 20 MB, giải nén tối đa 30 MB. Giữ nguyên tệp gốc, SHA-256 phát hiện trùng.
 - Chương và đoạn có UUID cố định; hai cột/xen kẽ/nguyên văn/bản dịch; font lớn nhỏ, sáng/tối/sepia, tìm trong chương, lưu vị trí bằng nút dấu trang từng đoạn.
 - Bản dịch thủ công có lịch sử tối đa 20 phiên bản và khóa; ghi chú, tô sáng; bảng từ vựng có nhiều ngữ cảnh và bốn trạng thái học.
-- Kết nối Google Translate trong trình đọc (mặc định, sáu chiều Việt/Anh/Trung) và MyMemory tùy chọn (API chính thức có hạn mức) và adapter LibreTranslate tùy chọn qua Worker: đọc mô hình khả dụng, dịch mẫu/chương, xác nhận gửi dữ liệu, xử lý từng đoạn và lưu ngay. Dừng khi 429 hoặc lỗi mạng; tiếp tục phần chưa có bản dịch, không fallback. Chỉ bật các cặp thực sự được máy chủ hỗ trợ.
+- Kết nối DeepL API chính thức trong trình đọc (mặc định; cặp Việt/Anh/Trung được kiểm tra trực tiếp với API) và MyMemory tùy chọn (API chính thức có hạn mức) và adapter LibreTranslate tùy chọn qua Worker: đọc mô hình khả dụng, dịch mẫu/chương, xác nhận gửi dữ liệu, xử lý từng đoạn và lưu ngay. Dừng khi 429 hoặc lỗi mạng; tiếp tục phần chưa có bản dịch, không fallback. Chỉ bật các cặp thực sự được máy chủ hỗ trợ.
 - CSV: xem trước, ánh xạ, gộp theo từ/ngôn ngữ/nghĩa hoặc giữ riêng; xuất CSV chung có bảo vệ công thức bảng tính. **Chưa xác minh tương thích Hanzii hay Anki.**
 - Mở trang chủ Hanzii sau sao chép từ Trung; không dùng deep link/API chưa xác minh, không đăng nhập Hanzii.
 - Phần nền giai đoạn 2: hồ sơ trẻ thuộc phụ huynh, duyệt sách và bật ngôn ngữ; luyện đọc từng câu, TTS trình duyệt, micro chỉ bật khi bấm thu âm và cấp quyền. Bản thu chỉ trong RAM, không lưu cloud, không chấm phát âm. Mức luyện ngoài đọc câu chưa có giáo trình riêng.
@@ -39,13 +39,21 @@ Migration: `supabase/migrations/202610190001_initial.sql`. Bucket `originals` ri
 
 ## Dịch song ngữ
 
-Mặc định production bật `TRANSLATION_ENABLED=true`, `TRANSLATION_PROVIDER=google`. Google Translate trả nghĩa ngay trong trình đọc, không cần khóa API. Endpoint công khai có thể thay đổi hoặc giới hạn lượt, không có SLA. Có thể chọn `TRANSLATION_PROVIDER=mymemory` để dùng API chính thức https://api.mymemory.translated.net/get ; bản miễn phí ẩn danh giới hạn **5.000 ký tự/ngày theo IP dịch vụ**, có thể chia sẻ giữa người dùng. Không nâng gói hoặc hứa dịch không giới hạn.
+Mặc định production bật `TRANSLATION_ENABLED=true`, `TRANSLATION_PROVIDER=deepl`. Dịch phần bôi đen và dịch song ngữ đều gọi **DeepL API chính thức** qua Worker, không mở tab dịch khác. Để bật:
+
+1. Cloudflare → Workers & Pages → **readbook** → Settings → Variables and Secrets → Add.
+2. Chọn **Secret**, tên **`DEEPL_API_KEY`**, nhập khóa từ [DeepL API Keys](https://www.deepl.com/your-account/keys), lưu và triển khai. Cần gói **DeepL API Free hoặc API Pro**; gói DeepL Translator thông thường không thay thế API.
+3. Mở lại ứng dụng → Cài đặt & kết nối: thẻ **DeepL · dịch trong trình đọc** kiểm tra khóa và danh sách ngôn ngữ. Không cần sửa Supabase hoặc đưa khóa vào biến `VITE_*`.
+
+Worker tự chọn `api-free.deepl.com` cho khóa có đuôi `:fx`, còn lại dùng `api.deepl.com`. Khóa chỉ nằm trong header `Authorization: DeepL-Auth-Key …` phía máy chủ; không gửi xuống trình duyệt. `/v3/languages?resource=translate_text` xác minh các ngôn ngữ nguồn/đích, cache metadata thành công tối đa 5 phút; `/v2/translate` nhận JSON, ưu tiên chất lượng. Không giả định tài khoản nào cũng hỗ trợ mọi cặp. Tiếng Trung đích ưu tiên `ZH-HANS`, tiếng Anh đích `EN-US`.
+
+Thiếu khóa được báo rõ trong Cài đặt và hộp dịch; 401/403 là lỗi khóa, 429 là quá nhiều yêu cầu, **456 mới là hết hạn mức ký tự/chi phí** của tài khoản DeepL. Không đổi sang Google hoặc MyMemory khi DeepL gặp lỗi. Giữ nghĩa sửa tay, chỉ cache kết quả thành công theo nhà cung cấp; cache Google cũ không thay bản dịch DeepL. Hạn mức và chi phí theo gói DeepL hiện có, kiểm tra tại tài khoản DeepL.
 
 Trong trình đọc, bấm **Dịch song ngữ**, đồng ý gửi văn bản tới nhà cung cấp rồi chọn **Dịch trang này**, **Dịch chương** hoặc **Dịch toàn sách / tiếp tục**. Chỉ gửi các đoạn còn thiếu; lưu ngay từng đoạn đã hoàn tất, giữ đoạn sửa/khóa. Gặp hết hạn mức hoặc mất mạng thì dừng, lần sau bỏ qua đoạn đã lưu. Công việc chạy khi tab còn mở, chưa có dịch nền bền vững. Đầu ra máy có nhãn nhà cung cấp, vẫn cần kiểm tra chất lượng.
 
-Worker giới hạn đầu vào 4.000 ký tự/đoạn; chia theo biên UTF-8 dưới 1.000 byte mỗi yêu cầu Google hoặc 500 byte mỗi yêu cầu MyMemory, ưu tiên ngắt câu/từ. Các lỗi/quota warning không được lưu thành bản dịch. Không tự chuyển nhà cung cấp.
+Worker giới hạn đầu vào 4.000 ký tự/đoạn. DeepL gửi nguyên đoạn Unicode trong một yêu cầu; adapter Google cũ chia dưới 1.000 byte UTF-8, MyMemory dưới 500 byte. Các lỗi/quota warning không được lưu thành bản dịch. Không tự chuyển nhà cung cấp.
 
-Có thể chọn `TRANSLATION_PROVIDER=libretranslate` và đặt `LIBRETRANSLATE_URL`, `LIBRETRANSLATE_API_KEY` (secret Worker), `SUPABASE_URL`, `SUPABASE_ANON_KEY` để dùng adapter tự triển khai có xác thực như trước. LibreTranslate phải cung cấp `/languages` và `/translate`; chỉ bật những cặp thực sự có model. `LOCAL_TRANSLATION=true` chỉ bỏ JWT khi request localhost. Không bật dịch có phí hoặc dựng máy chủ gây phí tự động.
+Có thể chọn `TRANSLATION_PROVIDER=libretranslate` và đặt `LIBRETRANSLATE_URL`, `LIBRETRANSLATE_API_KEY` (secret Worker), `SUPABASE_URL`, `SUPABASE_ANON_KEY` để dùng adapter tự triển khai có xác thực như trước. LibreTranslate phải cung cấp `/languages` và `/translate`; chỉ bật những cặp thực sự có model. `LOCAL_TRANSLATION=true` chỉ bỏ JWT khi request localhost. Không tạo hay nâng cấp gói dịch vụ tự động.
 
 ## Cloudflare
 
@@ -187,7 +195,7 @@ Bỏ điều khiển số ký tự/trang và chiều rộng; bỏ tác động c
 
 Không tạo thanh thao tác nổi khi hover đoạn. Bôi đen mới hiện hộp dịch cùng lưu dấu trang tại offset chọn, lưu vị trí, tô sáng, ghi chú/bản dịch và nghe phần chọn. Dữ liệu dấu trang cũ vẫn giữ, đổi tên/xóa trong danh sách dấu trang.
 
-Dịch mặc định đổi sang **Google Translate**, cấu hình `TRANSLATION_PROVIDER=google` trong Worker. `/api/translate` trả kết quả ngay trong hộp bôi đen / bản dịch song ngữ; nút **Dịch bằng Google** gọi `/api/translate/google` cố định để thử trực tiếp ngay cả khi cấu hình cũ còn MyMemory. Không mở tab Google Translate, không cần cài tiện ích trình duyệt, không nhúng iframe/script bên ngoài hoặc nới CSP. Endpoint công khai `translate.googleapis.com/translate_a/single` không có SLA và có thể bị chặn/giới hạn; không phải Cloud Translation API trả phí, không cần lấy khóa Custom Search để dịch. Mỗi đoạn tối đa 4.000 UTF-16 code unit, chia yêu cầu dưới 1.000 byte UTF-8; chỉ báo giới hạn lượt khi upstream HTTP 429. HTTP 403/5xx hoặc dữ liệu lỗi là lỗi nguồn riêng, không gán thành “hết hạn mức”. Không cache/lưu lỗi thành nghĩa, không ghi đè nghĩa sửa tay. MyMemory giữ làm adapter tùy chọn; hạn mức theo IP dịch vụ có thể dùng chung giữa nhiều người, không phản ánh số từ tài khoản vừa dịch.
+Lịch sử: trước khi tích hợp DeepL, dịch mặc định dùng **Google Translate**, cấu hình `TRANSLATION_PROVIDER=google` trong Worker. `/api/translate` trả kết quả ngay trong hộp bôi đen / bản dịch song ngữ; nút **Dịch bằng Google** gọi `/api/translate/google` cố định để thử trực tiếp ngay cả khi cấu hình cũ còn MyMemory. Không mở tab Google Translate, không cần cài tiện ích trình duyệt, không nhúng iframe/script bên ngoài hoặc nới CSP. Endpoint công khai `translate.googleapis.com/translate_a/single` không có SLA và có thể bị chặn/giới hạn; không phải Cloud Translation API trả phí, không cần lấy khóa Custom Search để dịch. Mỗi đoạn tối đa 4.000 UTF-16 code unit, chia yêu cầu dưới 1.000 byte UTF-8; chỉ báo giới hạn lượt khi upstream HTTP 429. HTTP 403/5xx hoặc dữ liệu lỗi là lỗi nguồn riêng, không gán thành “hết hạn mức”. Không cache/lưu lỗi thành nghĩa, không ghi đè nghĩa sửa tay. MyMemory giữ làm adapter tùy chọn; hạn mức theo IP dịch vụ có thể dùng chung giữa nhiều người, không phản ánh số từ tài khoản vừa dịch.
 
 Kiểm tra Google thật qua workerd và proxy môi trường: `Ăn → Eat`, `Eat → Ăn`, `吃 → ăn`; Chromium đọc sách, bôi đen và hiện nghĩa `Eat` ngay trong hộp dịch, không mở trang khác. Chưa chứng minh khả dụng qua mọi IP Cloudflare hoặc mọi thời điểm; API public có thể thay đổi.
 

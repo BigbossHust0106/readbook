@@ -37,10 +37,11 @@ test('the menu remains reachable after scrolling on every main tab',async({page}
   await expect(page.getByRole('button',{name:'Mở menu',exact:true})).toBeInViewport();const box=await page.getByRole('button',{name:'Mở menu',exact:true}).boundingBox();expect(box!.y).toBeLessThan(20);await openMenu(page);await expect(page.locator('.sidebar nav')).toBeVisible();await page.getByRole('button',{name:'Đóng menu',exact:true}).click();await page.evaluate(()=>{document.querySelector('[data-scroll-test]')?.remove();window.scrollTo(0,0);});
  }
 });
-test('Google translates the selection inside the reader even when the legacy source reports quota',async({page,context})=>{
- await page.route('**/api/translate',route=>route.fulfill({status:429,json:{error:'MyMemory đã hết hạn mức miễn phí.'}}));
- await page.route('**/api/translate/google',route=>{expect(route.request().postDataJSON().text).toBe('Đọc sách');return route.fulfill({json:{text:'Read books',provider:'Google Translate'}});});
- await add(page,'Đọc sách mỗi ngày.');await page.locator('[data-reading-source]').evaluate(el=>{const range=document.createRange();range.setStart(el.firstChild!,0);range.setEnd(el.firstChild!,8);const s=getSelection()!;s.removeAllRanges();s.addRange(range);});const popup=page.getByRole('dialog',{name:'Dịch và lưu từ'});await expect(popup).toContainText('hạn mức');await popup.getByRole('button',{name:'Dịch bằng Google',exact:true}).click();await expect(popup.getByLabel('Nghĩa của từ')).toHaveValue('Read books');await expect(popup).toContainText('Google Translate');expect(context.pages()).toHaveLength(1);await expect(popup.locator('a')).toHaveCount(0);
+test('DeepL retries inline without Google fallback or external tabs',async({page,context})=>{
+ let sent=0;
+ await page.route('**/api/capabilities',route=>route.fulfill({json:{provider:'DeepL',configured:true,pairs:[{source:'vi',targets:['en']}],reason:'DeepL API chính thức.'}}));
+ await page.route('**/api/translate',route=>{expect(route.request().postDataJSON().text).toBe('Đọc sách');return ++sent===1?route.fulfill({status:429,json:{error:'DeepL đang nhận quá nhiều yêu cầu.'}}):route.fulfill({json:{text:'Read books',provider:'DeepL'}});});
+ await add(page,'Đọc sách mỗi ngày.');await page.locator('[data-reading-source]').evaluate(el=>{const range=document.createRange();range.setStart(el.firstChild!,0);range.setEnd(el.firstChild!,8);const s=getSelection()!;s.removeAllRanges();s.addRange(range);});const popup=page.getByRole('dialog',{name:'Dịch và lưu từ'});await expect(popup).toContainText('DeepL đang nhận');await popup.getByRole('button',{name:'Thử dịch lại',exact:true}).click();await expect(popup.getByLabel('Nghĩa của từ')).toHaveValue('Read books');await expect(popup).toContainText('DeepL');expect(context.pages()).toHaveLength(1);await expect(popup.locator('a')).toHaveCount(0);await expect(popup.getByRole('button',{name:'Dịch bằng Google',exact:true})).toHaveCount(0);
 });
 
 test('Google settings do not claim an exhausted MyMemory quota or an official API',async({page})=>{

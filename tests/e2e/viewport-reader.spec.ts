@@ -30,7 +30,7 @@ test('failed selection translation can retry edited text and preserves a manuall
  await popup.getByLabel('Từ muốn lưu').fill('Edited selection');await popup.getByRole('button',{name:'Dịch',exact:true}).click();await expect.poll(()=>sent.length).toBe(2);
  await popup.getByLabel('Nghĩa của từ').fill('Nghĩa tự nhập cần giữ');await reply();await expect(popup.getByRole('button',{name:'Dùng bản dịch',exact:true})).toBeVisible();await expect(popup.getByLabel('Nghĩa của từ')).toHaveValue('Nghĩa tự nhập cần giữ');expect(sent).toEqual(['Reading','Edited selection']);
  await popup.getByRole('button',{name:'Dùng bản dịch',exact:true}).click();await expect(popup.getByLabel('Nghĩa của từ')).toHaveValue('Bản dịch sau khi thử lại');await popup.getByRole('button',{name:'Lưu từ',exact:true}).click();await expect(popup).toContainText('Đã lưu từ');
- await expect(popup.getByRole('button',{name:'Dịch bằng Google',exact:true})).toBeEnabled();await expect(popup.locator('a')).toHaveCount(0);
+ await expect(popup.getByRole('button',{name:'Dịch bằng Google',exact:true})).toHaveCount(0);await expect(popup.locator('a')).toHaveCount(0);
  const box=await popup.boundingBox();expect(box!.x).toBeGreaterThanOrEqual(0);expect(box!.x+box!.width).toBeLessThanOrEqual(390);await page.screenshot({path:'/tmp/readbook-translation-retry-mobile.png'});
 });
 test('editing selected text cancels an old response and malformed replies remain retryable',async({page})=>{

@@ -122,14 +122,14 @@ test("child profile sees only approved books and no external lookup", async ({
   );
   await expect(page.getByRole("link", { name: /Hanzii/ })).toHaveCount(0);
 });
-test("quota failure preserves already translated paragraphs and resumes only missing paragraphs", async ({
+test("DeepL quota failure preserves already translated paragraphs and resumes only missing paragraphs", async ({
   page,
 }) => {
   await page.route("**/api/capabilities", (r) =>
     r.fulfill({
       json: {
         configured: true,
-        provider: "LibreTranslate",
+        provider: "DeepL",
         pairs: [{ source: "vi", targets: ["en", "zh"] }],
       },
     }),
@@ -146,13 +146,13 @@ test("quota failure preserves already translated paragraphs and resumes only mis
     if (requests.length === 2 && quota)
       await route.fulfill({
         status: 429,
-        json: { error: "Hết hạn mức thử nghiệm" },
+        json: { error: "Tài khoản DeepL đã chạm hạn mức ký tự." },
       });
     else
       await route.fulfill({
         json: {
           text: "Bản dịch kiểm thử " + requests.length,
-          provider: "Test fixture (không phải dịch thật)",
+          provider: "DeepL",
         },
       });
   });

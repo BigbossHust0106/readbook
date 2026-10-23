@@ -1,3 +1,4 @@
+import {deepLCapabilities,deepLTranslate} from "./deepl";
 import {googleTranslate} from "./googleTranslate";
 import {speechRequest} from "./speech";
 import { sourceRequest, sourceCatalog } from "./source";
@@ -5,6 +6,7 @@ import { myMemory } from "./mymemory";
 import {sourceSearch} from './sourceSearch';
 export interface Env {
   ASSETS: { fetch: (request: Request) => Promise<Response> };
+  DEEPL_API_KEY?: string;
   LIBRETRANSLATE_URL?: string;
   LIBRETRANSLATE_API_KEY?: string;
   TRANSLATION_ENABLED?: string;
@@ -72,6 +74,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   if (url.pathname === "/api/health") return json({ ok: true });
   if (url.pathname === "/api/capabilities") {
     try {
+      if (env.TRANSLATION_ENABLED === "true" && env.TRANSLATION_PROVIDER === "deepl") return deepLCapabilities(env);
       if (env.TRANSLATION_ENABLED === 'true' && env.TRANSLATION_PROVIDER === 'google') return json({configured:true,provider:'Google Translate',pairs:supported.map(source=>({source,targets:supported.filter(t=>t!==source)})),reason:'Dịch ngay trong trình đọc qua Google. Cần Internet; endpoint công khai có thể giới hạn lượt hoặc thay đổi. Không dùng hạn mức MyMemory.'});
       if (env.TRANSLATION_ENABLED === "true" && env.TRANSLATION_PROVIDER === "mymemory") return json({
         configured: true, provider: "MyMemory", pairs: supported.map(source => ({ source, targets: supported.filter(t => t !== source) })),
@@ -106,6 +109,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     // Same-origin browser writes. Never trust a client-provided provider URL or key.
     if (request.headers.get("Origin") !== url.origin)
       return json({ error: "Nguồn yêu cầu không được phép." }, 403);
+    if (env.TRANSLATION_ENABLED === "true" && env.TRANSLATION_PROVIDER === "deepl") return deepLTranslate(request,env);
     if (env.TRANSLATION_ENABLED === "true" && (env.TRANSLATION_PROVIDER === "google" || url.pathname.endsWith("/google"))) return googleTranslate(request);
     if (env.TRANSLATION_ENABLED === "true" && env.TRANSLATION_PROVIDER === "mymemory") return myMemory(request);
     let base: string | null;

@@ -13,8 +13,8 @@ beforeAll(async()=>{
   script=bundle.outputFiles[0].text;
 });
 afterEach(async()=>{await Promise.all(runtimes.splice(0).map(mf=>mf.dispose()));});
-function runtime(outboundService:(req:RuntimeRequest)=>RuntimeResponse,libre=false){
-  const mf=new Miniflare(convertV4MiniflareOptions({modules:true,compatibilityDate,script,outboundService,bindings:libre?{TRANSLATION_ENABLED:'true',LOCAL_TRANSLATION:'true',LIBRETRANSLATE_URL:'http://127.0.0.1:5000'}:{TRANSLATION_ENABLED:'true',TRANSLATION_PROVIDER:'mymemory'}}));
+function runtime(outboundService:(req:RuntimeRequest)=>RuntimeResponse|Promise<RuntimeResponse>,libre=false,extra:Record<string,string>={}){
+  const mf=new Miniflare(convertV4MiniflareOptions({modules:true,compatibilityDate,script,outboundService,bindings:libre?{TRANSLATION_ENABLED:'true',LOCAL_TRANSLATION:'true',LIBRETRANSLATE_URL:'http://127.0.0.1:5000'}:{TRANSLATION_ENABLED:'true',TRANSLATION_PROVIDER:'mymemory',...extra}}));
   runtimes.push(mf);return mf;
 }
 const request={method:'POST',headers:{Origin:'http://localhost','Content-Type':'application/json'},body:JSON.stringify({text:'Ăn',source:'vi',target:'en'})};
@@ -60,4 +60,10 @@ it('streams MP3 speech in the actual Worker runtime and rejects provider redirec
  const request={method:'POST',headers:{Origin:'http://localhost'},body:JSON.stringify({text:'Đọc sách.',language:'vi'})};
  const response=await mf.dispatchFetch('http://localhost/api/speech',request);expect(response.status).toBe(200);expect(response.headers.get('Content-Type')).toBe('audio/mpeg');expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([255,243,132,0]));expect(new URL(calls[0]).hostname).toBe('translate.google.com');
  const redirect=runtime(()=>new RuntimeResponse(null,{status:302,headers:{Location:'https://untrusted.example/audio'}}));expect((await redirect.dispatchFetch('http://localhost/api/speech',request)).status).toBe(502);
+});
+
+it('uses DeepL server-side credentials and Vietnamese in actual workerd',async()=>{
+ const calls:string[]=[];
+ const mf=runtime(async req=>{calls.push(req.url);expect(req.headers.get('Authorization')).toBe('DeepL-Auth-Key fixture:fx');if(new URL(req.url).pathname==='/v3/languages')return RuntimeResponse.json([{lang:'vi',usable_as_source:true,usable_as_target:true},{lang:'en',usable_as_source:true,usable_as_target:true}]);expect(await req.json()).toMatchObject({text:['Ăn'],source_lang:'VI',target_lang:'EN',model_type:'quality_optimized'});return RuntimeResponse.json({translations:[{text:'Eat'}]});},false,{TRANSLATION_PROVIDER:'deepl',DEEPL_API_KEY:'fixture:fx'});
+ const response=await mf.dispatchFetch('http://localhost/api/translate',request);expect(response.status).toBe(200);expect(await response.json()).toMatchObject({text:'Eat',provider:'DeepL'});expect(calls).toHaveLength(2);expect(calls.every(url=>new URL(url).origin==='https://api-free.deepl.com')).toBe(true);
 });

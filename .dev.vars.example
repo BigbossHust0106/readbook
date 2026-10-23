@@ -5,4 +5,7 @@ LIBRETRANSLATE_API_KEY=
 SUPABASE_URL=https://sddqnjefltipcpgypsun.supabase.co
 SUPABASE_ANON_KEY=sb_publishable_Vwxk_wOyYV6v421CQq4-lA_861UaBrc
 
-TRANSLATION_PROVIDER=google
+TRANSLATION_PROVIDER=deepl
+
+# Keep this key in .dev.vars locally or a Cloudflare Secret in production.
+DEEPL_API_KEY=
