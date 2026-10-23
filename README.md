@@ -226,3 +226,10 @@ Khi ẩn nút chuyển trang, vùng chữ chỉ chừa 14px đáy cộng safe ar
 Trong **Cài đặt & kết nối → Khi mở ứng dụng → Màn hình khởi động**, chọn **Mở thư viện của tôi** hoặc **Mở lại sách cuối đang đọc**. Lựa chọn lưu trên thiết bị; mặc định tiếp tục sách như trước. Chọn thư viện không xóa vị trí đọc hoặc sách cuối. Nếu sách cuối đã mất/quyền truy cập không còn thì mở thư viện. Thư viện cuối vẫn tách theo tài khoản/cục bộ qua cơ chế lưu vị trí hiện có.
 
 Thanh trên cùng chỉ hiện tên tab bằng tiêu đề lớn, đậm; bỏ tiền tố “Không gian đọc /”. Trên desktop rộng từ 900px với chuột, trang đọc dùng khổ dọc giới hạn theo chiều cao màn hình và đặt giữa; cùng renderer/nếp gấp/bóng như điện thoại. Thời gian lật được chuẩn hóa khoảng 500ms theo kích thước tờ giấy, tránh khác biệt lớn do engine tính thời gian từ quãng đường pixel. Điện thoại và bố cục ngang cảm ứng giữ chiều rộng thích ứng như trước.
+
+
+## Đăng nhập bằng Google
+
+Trong **Cài đặt & kết nối → Tài khoản & Supabase**, có nút **Đăng nhập bằng Google** cạnh lựa chọn email. Dùng Supabase OAuth PKCE, chuyển toàn cửa sổ tới Google và quay về `/auth/callback`; SDK đổi code lấy phiên, sau đó ứng dụng xóa code/lỗi khỏi URL và hiển thị tài khoản. Hủy hoặc lỗi đăng nhập có thông báo ngay trong app để thử lại; đăng xuất không tự mở sách cục bộ. Không cần mật khẩu Google trong ứng dụng, không yêu cầu quyền Drive hoặc đưa Client Secret vào frontend.
+
+Quản trị viên cần bật Google provider bằng Google OAuth Client ID/Secret: [hướng dẫn cấu hình Google Cloud và Supabase](docs/google-login-setup.md). Redirect URL production đã thêm trong Supabase. Nút kiểm tra provider trước khi chuyển trang, báo rõ khi chưa bật/mất kết nối. Email/password và dữ liệu local/cloud giữ cơ chế hiện có. Với PKCE, xác nhận email đăng ký mới cần mở trong cùng trình duyệt đã đăng ký.

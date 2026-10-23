@@ -1,3 +1,4 @@
+import {signInWithGoogle} from "./googleAuth";
 import {previewPage} from "./pageSnapshot";
 import {readerFonts,readerThemes,readerFontFamilies} from "./readerAppearance";
 import {usePageTurn} from "./usePageTurn";
@@ -133,8 +134,11 @@ function LanguageSelect({
 
 export default function App() {
   const appInstall=useAppInstall();
+  const googleCallback=useRef(location.pathname==="/auth/callback");
+  const callbackCancelled=useRef(new URLSearchParams(location.search).get("error")==="access_denied"||new URLSearchParams(location.hash.slice(1)).get("error")==="access_denied");
+  const [authError,setAuthError]=useState(""),[googleBusy,setGoogleBusy]=useState(false);
   const [startupPage,setStartupPage]=useState<"library"|"resume">("resume");
-  const [page, setPage] = useState<Page>("library");
+  const [page, setPage] = useState<Page>(googleCallback.current?"settings":"library");
   const [books, setBooks] = useState<Book[]>([]);
   const [words, setWords] = useState<Word[]>([]);
   const [children, setChildren] = useState<Child[]>([]);
@@ -206,7 +210,14 @@ export default function App() {
       setSessionEmail(session?.user.email||"");
       if(event!=="INITIAL_SESSION"&&event!=="SIGNED_IN"&&event!=="SIGNED_OUT")return;
       const uid=session?.user.id||"";if(event!=="INITIAL_SESSION"&&uid===sessionId.current)return;sessionId.current=uid;
-      setTimeout(()=>{setCloud(!!session);void load(!!session,false,true);},0);
+      const returnedFromGoogle=googleCallback.current;
+      if(returnedFromGoogle){
+        history.replaceState(null,"", "/");setSelected(null);setPage("settings");
+        setAuthError(session?"":callbackCancelled.current?"Bạn đã hủy đăng nhập Google. Bạn có thể thử lại hoặc dùng email.":"Đăng nhập Google chưa hoàn tất hoặc phiên đã hết hạn. Hãy thử đăng nhập lại trên trình duyệt này.");
+        if(session)notify("Đã đăng nhập. Thư viện tài khoản đã sẵn sàng.");
+      }
+      setTimeout(()=>{setCloud(!!session);void load(!!session,false,!returnedFromGoogle&&event!=="SIGNED_OUT");},0);
+      if(event==="INITIAL_SESSION")googleCallback.current=false;
     });
     return()=>data.subscription.unsubscribe();
   },[]);
@@ -366,9 +377,16 @@ export default function App() {
       notify(errorText(e));
     }
   }
+  async function googleLogin(){
+    if(!store.supabase)return;
+    setBusy(true);setGoogleBusy(true);setAuthError("");
+    try{await signInWithGoogle(store.supabase,location.origin);}
+    catch(error){setAuthError(errorText(error));}
+    finally{setBusy(false);setGoogleBusy(false);}
+  }
   async function auth(action: "login" | "signup" | "logout") {
     if (!store.supabase) return;
-    setBusy(true);
+    setAuthError("");setBusy(true);
     try {
       if (action === "logout") {
         const { error } = await store.supabase.auth.signOut();
@@ -386,7 +404,7 @@ export default function App() {
           setCloud(true);
           await load(true);
           notify("Đã mở thư viện riêng của tài khoản.");
-        } else notify("Kiểm tra email để xác nhận tài khoản.");
+        } else notify("Mở liên kết xác nhận email trên trình duyệt bạn vừa dùng để đăng ký.");
       }
     } catch (e) {
       notify(errorText(e));
@@ -1040,6 +1058,7 @@ export default function App() {
                       Thư viện cục bộ và thư viện tài khoản tách riêng. Không tự
                       tải tài liệu cá nhân lên cloud.
                     </p>
+                    {authError&&<p className="notice" role="alert">{authError}</p>}
                     {!store.supabase ? (
                       <div className="notice">
                         Chưa kết nối Supabase. Chế độ cục bộ hoạt động độc lập.
@@ -1074,6 +1093,11 @@ export default function App() {
                           void auth("login");
                         }}
                       >
+                        <button type="button" className="google-sign-in" disabled={busy} onClick={()=>void googleLogin()}>
+                          <svg viewBox="0 0 48 48" width="20" height="20" aria-hidden="true"><path fill="#4285F4" d="M43.6 24.5c0-1.4-.1-2.8-.4-4.2H24v8h11a9.5 9.5 0 0 1-4.1 6.2v5.2h6.6c3.9-3.6 6.1-8.9 6.1-15.2z"/><path fill="#34A853" d="M24 44c5.5 0 10.1-1.8 13.5-4.9l-6.6-5.2c-1.8 1.2-4.1 1.9-6.9 1.9-5.3 0-9.8-3.6-11.4-8.4H5.8v5.3A20.4 20.4 0 0 0 24 44z"/><path fill="#FBBC05" d="M12.6 27.4a12.3 12.3 0 0 1 0-7.8v-5.3H5.8a20.1 20.1 0 0 0 0 18.4z"/><path fill="#EA4335" d="M24 11.2c3 0 5.6 1 7.7 3l5.8-5.8A19.5 19.5 0 0 0 24 3a20.4 20.4 0 0 0-18.2 11.3l6.8 5.3C14.2 14.8 18.7 11.2 24 11.2z"/></svg>
+                          {googleBusy?"Đang kết nối Google…":"Đăng nhập bằng Google"}
+                        </button>
+                        <p className="auth-divider">hoặc đăng nhập bằng email</p>
                         <label>
                           Email
                           <input

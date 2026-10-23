@@ -2138,3 +2138,7 @@ body.reading-paged .app,body.reading-paged .app>main { height:100dvh;min-height:
 }
 .topbar .tab-title { margin:0;font-family:"Noto Sans",sans-serif;font-size:22px;font-weight:700;line-height:1.25;color:#285e4c;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
 @media(max-width:600px){.topbar .tab-title{font-size:19px;}}
+
+.google-sign-in { width:100%;justify-content:center;gap:10px;background:#fff;color:#314439;border:1px solid #ccd6cf;font-size:14px;font-weight:600;padding:12px 16px; }
+.google-sign-in svg { flex:none; }
+.auth-divider { text-align:center;color:#7e897e;font-size:12px;margin:16px 0; }
