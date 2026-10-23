@@ -1118,9 +1118,9 @@ var Render2 = class {
    */
   render(timer) {
     if (this.animation !== null) {
-      const frameIndex = Math.round(
+      const frameIndex = Math.max(0, Math.round(
         (timer - this.animation.startedAt) / this.animation.durationFrame
-      );
+      ));
       if (frameIndex < this.animation.frames.length) {
         this.animation.frames[frameIndex]();
       } else {

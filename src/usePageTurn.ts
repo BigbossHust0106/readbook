@@ -3,10 +3,10 @@ import {PageFlip,type Point} from './vendor/pageFlip';
 import engineCSS from './vendor/pageFlip.css?inline';
 import {capturePage} from './pageSnapshot';
 type Direction='forward'|'backward';
-type Turn={layer:HTMLElement;engine?:PageFlip;timer:ReturnType<typeof setTimeout>;start?:()=>void;drag?:{direction:Direction;x:number;y:number;at:number;width:number;height:number;startX:number;startY:number}};
+type Turn={layer:HTMLElement;engine?:PageFlip;timer:ReturnType<typeof setTimeout>;start?:()=>void;readyFrame?:number;drag?:{direction:Direction;x:number;y:number;at:number;width:number;height:number;startX:number;startY:number}};
 export function usePageTurn(paper:RefObject<HTMLDivElement|null>,frame:RefObject<HTMLDivElement|null>,enabled:boolean,layoutKey:string,preview:(direction:Direction)=>HTMLElement|null){
  const active=useRef<Turn|null>(null),latest=useRef(preview);latest.current=preview;
- function cancel(){const previous=active.current;active.current=null;if(previous){clearTimeout(previous.timer);previous.engine?.destroy();previous.layer.remove();}}
+ function cancel(){const previous=active.current;active.current=null;if(previous){clearTimeout(previous.timer);if(previous.readyFrame!==undefined)cancelAnimationFrame(previous.readyFrame);previous.engine?.destroy();previous.layer.remove();}}
  useLayoutEffect(()=>{const pending=active.current?.start;if(pending){active.current!.start=undefined;pending();}});
  useEffect(()=>{cancel();},[enabled,layoutKey]);
  useEffect(()=>{
@@ -25,11 +25,12 @@ export function usePageTurn(paper:RefObject<HTMLDivElement|null>,frame:RefObject
   const shadow=layer.attachShadow({mode:'closed'}),style=document.createElement('style');style.textContent=engineCSS+`\n:host{background:${color};overflow:hidden}.engine-root{position:absolute;inset:0;width:100%;height:100%}.stf__wrapper{height:100%}.flip-sheet{background:${color};overflow:hidden}.flip-sheet>*{visibility:visible!important;}`;shadow.append(style);
   const root=document.createElement('div');root.className='engine-root';shadow.append(root);container.append(layer);
   const state:Turn={layer,timer:setTimeout(()=>{if(active.current===state)cancel();},1800)};active.current=state;
-  function initialize(target:HTMLElement){
+  function initialize(target:HTMLElement,ready?:()=>void){
    if(active.current!==state)return;
    const snapshots=direction==='forward'?[old,target]:[target,old];
    const sheets=snapshots.map(content=>{const sheet=document.createElement('div');sheet.className='flip-sheet';sheet.dataset.density='soft';sheet.append(content);return sheet;});
    const engine=new PageFlip(root,{width:rect.width,height:rect.height,size:'fixed',startPage:direction==='forward'?0:1,usePortrait:true,autoSize:false,showCover:false,drawShadow:true,maxShadowOpacity:.32,flippingTime:720,useMouseEvents:false,showPageCorners:false,disableFlipByClick:false,mobileScrollSupport:false});state.engine=engine;
+   if(ready)engine.on('init',()=>{state.readyFrame=requestAnimationFrame(()=>{state.readyFrame=undefined;if(active.current===state)ready();});});
    engine.loadFromHTML(sheets);
    engine.on('changeState',event=>{state.layer.dataset.phase=String(event.data);if(event.data==='read'&&active.current===state)cancel();});
   }
@@ -39,7 +40,7 @@ export function usePageTurn(paper:RefObject<HTMLDivElement|null>,frame:RefObject
   const created=create(direction);if(!created)return;
   // Keep the outgoing content in place until React commits the actual next page.
   const cover=document.createElement('div');cover.className='page-turn-underlay';cover.style.cssText='position:absolute;inset:0;overflow:hidden';cover.append(created.old.cloneNode(true));created.shadow.append(cover);
-  created.state.start=()=>{created.initialize(capturePage(paper.current!));cover.remove();if(direction==='forward')created.state.engine?.flipNext('bottom');else created.state.engine?.flipPrev('top');};
+  created.state.start=()=>{created.initialize(capturePage(paper.current!),()=>{cover.remove();if(direction==='forward')created.state.engine?.flipNext('bottom');else created.state.engine?.flipPrev('top');});};
  }
  function begin(direction:Direction,x:number,y:number){
   if(!enabled||matchMedia('(prefers-reduced-motion: reduce)').matches)return false;

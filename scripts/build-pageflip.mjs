@@ -12,6 +12,10 @@ await build({entryPoints:[new URL('src/PageFlip.ts',root).pathname],bundle:true,
  api.onLoad({filter:/\.ts$/},async({path})=>{
   let source=await readFile(path,'utf8');
   if(path.endsWith('/Render/Render.ts')){
+   // A frame timestamp can predate initialization performed later in the same
+   // browser frame. A negative index killed the RAF loop on single-click turns.
+   source=replace(source,'            const frameIndex = Math.round(\n                (timer - this.animation.startedAt) / this.animation.durationFrame\n            );','            const frameIndex = Math.max(0, Math.round(\n                (timer - this.animation.startedAt) / this.animation.durationFrame\n            ));');
+
    source=replace(source,'    public start(): void {\n        this.update();','    private frameId = 0;\n    private stopped = false;\n    public stop(): void { this.stopped = true; cancelAnimationFrame(this.frameId); this.animation = null; }\n    public start(): void {\n        this.update();\n        this.timer = performance.now();');
    source=replace(source,'            this.render(timer);\n            requestAnimationFrame(loop);','            if (this.stopped) return;\n            this.render(timer);\n            if (!this.stopped) this.frameId = requestAnimationFrame(loop);');
    source=replace(source,'        requestAnimationFrame(loop);','        this.frameId = requestAnimationFrame(loop);');

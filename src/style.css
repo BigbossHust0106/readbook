@@ -1911,7 +1911,7 @@ body.reading-mode .app > main { margin-left:58px; width:calc(100% - 58px); }
 .flyout-word p { margin:4px 0; }
 .show-reader-tools { position:fixed;top:12px;right:16px;z-index:85;box-shadow:0 2px 10px #183c3020;background:#fffef9; }
 .reader-controls.tools-floating { position:fixed;z-index:75;top:8px;left:74px;right:12px;padding:50px 18px 12px;max-height:78dvh;overflow-y:auto;border:1px solid #d9e3d1;border-radius:12px;box-shadow:0 8px 40px #18352635;background:#fffdf8; }
-.reader-page-status { position:fixed;left:58px;right:0;bottom:0;z-index:12;pointer-events:none;text-align:center;padding:8px 12px calc(8px + env(safe-area-inset-bottom));font-size:10px;background:#fffdf7ed;color:#687b60; }
+.reader-page-status { position:fixed;left:auto;right:10px;bottom:0;z-index:12;pointer-events:none;text-align:center;padding:8px 12px calc(8px + env(safe-area-inset-bottom));font-size:10px;background:#fffdf7ed;color:#687b60; }
 .reader .reading-paper.mode-paged { min-height:calc(100dvh - 95px);touch-action:pan-y; }
 .word-popover { position:fixed;z-index:100;width:min(320px,calc(100vw - 24px));max-height:280px;overflow:auto;border:1px solid #cfdcc4;border-radius:12px;box-shadow:0 5px 30px #1c3e2940;background:#fffffb;padding:14px;font-size:13px;color:#2d4434; }
 .word-popover header { display:flex;justify-content:space-between;align-items:center;gap:14px; }
@@ -2005,9 +2005,9 @@ body.reading-paged .app,body.reading-paged .app>main { height:100dvh;min-height:
 .pagination-pending .reading-paper.mode-paged { visibility:hidden; }
 .desktop-page-buttons { position:fixed;left:24px;right:24px;bottom:12px;display:flex;justify-content:space-between;pointer-events:none;z-index:20; }
 .desktop-page-buttons button { pointer-events:auto;padding:8px 15px;box-shadow:0 2px 10px #183c3018; }
-.is-paged .reader-page-status { max-width:calc(100vw - 170px);bottom:18px; }
+
 .viewport-measure { flex:none!important;max-height:none!important; }
-@media(max-width:600px){.reader.is-paged{padding:62px 14px 50px;}.desktop-page-buttons{display:none;}.is-paged .reader-page-status{max-width:calc(100vw - 24px);bottom:12px;}.paged-title{font-size:12px;left:62px;right:128px;}.reader-mobile-menu{left:9px;}}
+@media(max-width:600px){.reader.is-paged{padding:62px 14px 50px;}.desktop-page-buttons{display:none;}.paged-title{font-size:12px;left:62px;right:128px;}.reader-mobile-menu{left:9px;}}
 /* Dialogs stay above the reader controls and navigation drawer. */
 .overlay { z-index:150; }
 
@@ -2023,8 +2023,8 @@ body.reading-paged .app,body.reading-paged .app>main { height:100dvh;min-height:
 .speech-player p { font-size:13px;margin:8px 0; }
 .speech-player audio { width:100%;height:40px; }
 .reader.is-paged .desktop-page-buttons { display:flex; }
-.reader.is-paged:has(.desktop-page-buttons) .reader-page-status { left:82px;right:82px;max-width:none; }
-@media(max-width:600px){.reader-listen-button{top:9px;right:151px;}.is-paged .paged-title{right:202px;}.desktop-page-buttons{left:12px;right:12px;}.reader.is-paged:has(.desktop-page-buttons) .reader-page-status{left:66px;right:66px;}.speech-player{bottom:62px;}}
+
+@media(max-width:600px){.reader-listen-button{top:9px;right:151px;}.is-paged .paged-title{right:202px;}.desktop-page-buttons{left:12px;right:12px;}.speech-player{bottom:62px;}}
 
 .app:has(.speech-player:not([hidden])) .toast { top:70px;bottom:auto; }
 /* Global menu actions stay fixed; only the current book's chapters scroll. */
@@ -2122,6 +2122,12 @@ body.reading-paged .app,body.reading-paged .app>main { height:100dvh;min-height:
 .reader .reader-page-status,
 .reader.is-paged .reader-page-status,
 .reader.is-paged:has(.desktop-page-buttons) .reader-page-status {
- left:auto;right:10px;bottom:calc(2px + env(safe-area-inset-bottom));max-width:none;
+ left:auto;right:10px;bottom:calc(2px + env(safe-area-inset-bottom));width:max-content;max-width:calc(100vw - 20px);
  padding:0;font-size:8px;line-height:1.3;text-align:right;background:transparent;color:inherit;opacity:.7;
 }
+
+/* When turn buttons are hidden, give their reserved space back to the paper. */
+.reader.is-paged:not(:has(.desktop-page-buttons)) { padding-bottom:calc(14px + env(safe-area-inset-bottom)); }
+/* Paragraph spacing belongs between paragraphs, not below the final printed line. */
+.reading-paper > .paragraph:last-child .paragraph-text > p:last-child,
+.reading-paper > .paragraph:last-child .translated > p:last-child { margin-bottom:0; }
