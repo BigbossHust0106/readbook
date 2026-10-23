@@ -133,7 +133,7 @@ function LanguageSelect({
 
 export default function App() {
   const appInstall=useAppInstall();
-  const [installOpen,setInstallOpen]=useState(false);
+  const [startupPage,setStartupPage]=useState<"library"|"resume">("resume");
   const [page, setPage] = useState<Page>("library");
   const [books, setBooks] = useState<Book[]>([]);
   const [words, setWords] = useState<Word[]>([]);
@@ -188,10 +188,14 @@ export default function App() {
       if(sequence!==loadingSequence.current)return;
       setBooks(b);setWords(w);setChildren(c);
       if(resume) {
-        const last=await store.lastReadBook(useCloud);
+        const startup=await store.getSetting<string>("startup-page","resume");
+        if(sequence!==loadingSequence.current)return;
+        setStartupPage(startup==="library"?"library":"resume");
+        const last=startup==="library"?null:await store.lastReadBook(useCloud);
         if(sequence!==loadingSequence.current)return;
         const next=b.find(book=>book.id===last) || (!last ? b.find(book=>book.position.chapter||book.position.paragraph||book.position.offset) : undefined);
-        if(next)setSelected(next.id);
+        if(startup!=="library"&&next)setSelected(next.id);
+        else {setSelected(null);setPage("library");}
       } else setSelected(id=>id&&b.some(book=>book.id===id)?id:null);
     } catch(e){if(sequence===loadingSequence.current)notify(errorText(e));}
     finally{if(sequence===loadingSequence.current)setReady(true);}
@@ -516,7 +520,6 @@ export default function App() {
               )}
             </button>
           ))}
-          <button onClick={()=>{setMobileNav(false);setInstallOpen(true);}}><Download size={19}/>Cài đặt ứng dụng</button>
         </nav>
         <div id="reader-sidebar-content"/>
         <div className="storage">
@@ -538,10 +541,7 @@ export default function App() {
           >
             <Menu />
           </button>
-          <div className="breadcrumb">
-            Không gian đọc <span>/</span>{" "}
-            {active ? "Trình đọc" : nav.find((n) => n.id === page)?.label}
-          </div>
+          <h1 className="tab-title">{active ? "Trình đọc" : nav.find((n) => n.id === page)?.label}</h1>
           <div className="top-actions">
             <span className="connection">
               {online ? <span className="status-dot" /> : <WifiOff size={14} />}{" "}
@@ -1030,6 +1030,7 @@ export default function App() {
                   </div>
                 </div>
                 <div className="settings-grid">
+                  <section className="panel"><h2>Khi mở ứng dụng</h2><label>Màn hình khởi động<select aria-label="Màn hình khởi động" value={startupPage} onChange={async e=>{const value=e.target.value==="library"?"library":"resume";try{await store.setSetting("startup-page",value);setStartupPage(value);}catch(error){notify(errorText(error));}}}><option value="library">Mở thư viện của tôi</option><option value="resume">Mở lại sách cuối đang đọc</option></select></label><p className="muted">Lưu lựa chọn trên thiết bị này. Nếu sách cuối không còn trong thư viện, ứng dụng sẽ mở thư viện.</p></section>
                   <section className="panel"><h2><Download size={21}/> Cài đặt ứng dụng</h2><InstallAppContent state={appInstall}/></section>
                   <section className="panel">
                     <h2>
@@ -1191,7 +1192,6 @@ export default function App() {
           </div>
         )}
       </main>
-      {installOpen&&<Modal title="Cài đặt ứng dụng" onClose={()=>setInstallOpen(false)}><InstallAppContent state={appInstall}/></Modal>}
       {message && (
         <div role="status" className="toast">
           <span>{message}</span>

@@ -2122,8 +2122,8 @@ body.reading-paged .app,body.reading-paged .app>main { height:100dvh;min-height:
 .reader .reader-page-status,
 .reader.is-paged .reader-page-status,
 .reader.is-paged:has(.desktop-page-buttons) .reader-page-status {
- left:auto;right:10px;bottom:calc(2px + env(safe-area-inset-bottom));width:max-content;max-width:calc(100vw - 20px);
- padding:0;font-size:8px;line-height:1.3;text-align:right;background:transparent;color:inherit;opacity:.7;
+ left:0;right:0;bottom:calc(2px + env(safe-area-inset-bottom));width:auto;max-width:none;
+ padding:0;font-size:8px;line-height:1.3;text-align:center;background:transparent;color:inherit;opacity:.7;
 }
 
 /* When turn buttons are hidden, give their reserved space back to the paper. */
@@ -2131,3 +2131,10 @@ body.reading-paged .app,body.reading-paged .app>main { height:100dvh;min-height:
 /* Paragraph spacing belongs between paragraphs, not below the final printed line. */
 .reading-paper > .paragraph:last-child .paragraph-text > p:last-child,
 .reading-paper > .paragraph:last-child .translated > p:last-child { margin-bottom:0; }
+
+/* A portrait paper sheet gives the desktop fold the same proportions as a phone. */
+@media(min-width:900px) and (hover:hover) and (pointer:fine) {
+ .reader.is-paged .page-frame { max-width:min(100%,calc((100dvh - 80px) * .72));margin-inline:auto; }
+}
+.topbar .tab-title { margin:0;font-family:"Noto Sans",sans-serif;font-size:22px;font-weight:700;line-height:1.25;color:#285e4c;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+@media(max-width:600px){.topbar .tab-title{font-size:19px;}}

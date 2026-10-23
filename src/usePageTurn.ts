@@ -29,7 +29,9 @@ export function usePageTurn(paper:RefObject<HTMLDivElement|null>,frame:RefObject
    if(active.current!==state)return;
    const snapshots=direction==='forward'?[old,target]:[target,old];
    const sheets=snapshots.map(content=>{const sheet=document.createElement('div');sheet.className='flip-sheet';sheet.dataset.density='soft';sheet.append(content);return sheet;});
-   const engine=new PageFlip(root,{width:rect.width,height:rect.height,size:'fixed',startPage:direction==='forward'?0:1,usePortrait:true,autoSize:false,showCover:false,drawShadow:true,maxShadowOpacity:.32,flippingTime:720,useMouseEvents:false,showPageCorners:false,disableFlipByClick:false,mobileScrollSupport:false});state.engine=engine;
+   // Match the phone turn duration even when the desktop sheet is wider.
+   const flippingTime=Math.round(500/Math.min(1,Math.max(1,2*rect.width-rect.height/10)/1000));
+   const engine=new PageFlip(root,{width:rect.width,height:rect.height,size:'fixed',startPage:direction==='forward'?0:1,usePortrait:true,autoSize:false,showCover:false,drawShadow:true,maxShadowOpacity:.32,flippingTime,useMouseEvents:false,showPageCorners:false,disableFlipByClick:false,mobileScrollSupport:false});state.engine=engine;
    if(ready)engine.on('init',()=>{state.readyFrame=requestAnimationFrame(()=>{state.readyFrame=undefined;if(active.current===state)ready();});});
    engine.loadFromHTML(sheets);
    engine.on('changeState',event=>{state.layer.dataset.phase=String(event.data);if(event.data==='read'&&active.current===state)cancel();});
