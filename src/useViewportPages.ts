@@ -60,11 +60,11 @@ export function useViewportPages({ book, position, frame, enabled, layout, targe
       const article = document.createElement('article'), row = document.createElement('div');
       article.className = 'paragraph'; row.className = 'paragraph-text'; article.append(row);
       if (layout !== 'translation') {
-        const source = document.createElement('p'); source.textContent = p.text.slice(fragment.start, fragment.end);
+        const source = document.createElement('p'); source.lang = book.language; source.textContent = p.text.slice(fragment.start, fragment.end);
         if (fragment.start) source.style.textIndent = '0'; row.append(source);
       }
       if (layout !== 'original') {
-        const box = document.createElement('div'), translated = document.createElement('p'); box.className = 'translated';
+        const box = document.createElement('div'), translated = document.createElement('p'); box.className = 'translated'; box.lang = target;
         if (p.translations[target]?.text) translated.textContent = translatedFragment(p.translations[target]!.text, p.text.length, fragment.start, fragment.end);
         else { translated.className = 'untranslated'; translated.textContent = 'Chưa có bản dịch ·'; }
         box.append(translated); row.append(box);

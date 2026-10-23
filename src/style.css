@@ -1853,7 +1853,7 @@ body.child-mode .app > main {
 /* A quiet reading surface; tools appear on the active paragraph without adding rows. */
 .reader { padding-bottom: calc(105px + env(safe-area-inset-bottom)); }
 .reading-paper { scroll-margin-top: 24px; }
-.reading-paper .paragraph { position: relative; padding: 0 4px; border: 0; margin: 0; outline-offset: 3px; }
+.reading-paper .paragraph { position: relative; display:flow-root; padding: 0 4px; border: 0; margin: 0; outline-offset: 3px; }
 .reading-paper .paragraph p { white-space: normal; text-align: justify; text-indent: 1.35em; line-height: 1.85; margin: 0 0 .6em; }
 .reading-paper .paragraph.current { border: 0; }
 .reading-paper .paragraph-text { gap: 28px; }
@@ -2114,6 +2114,14 @@ body.reading-paged .app,body.reading-paged .app>main { height:100dvh;min-height:
 
 /* Continuous clipped paper and fold shadows are rendered by StPageFlip in an inert shadow tree. */
 .page-turn-overlay.flipbook { perspective:none;contain:layout style;overflow:hidden;background:inherit; }
-.reader.is-paged .page-frame { box-shadow:inset 3px 0 8px -7px #172b2260; }
 
-@media(hover:hover){.reader.is-paged .reading-paper::after{content:"";position:absolute;right:0;bottom:0;width:18px;height:18px;background:linear-gradient(135deg,transparent 48%,#78926625 50%,#78926608 100%);pointer-events:none;}}
+
+
+
+/* Page furniture shares the paper colour; fold shadows exist only during a turn. */
+.reader .reader-page-status,
+.reader.is-paged .reader-page-status,
+.reader.is-paged:has(.desktop-page-buttons) .reader-page-status {
+ left:auto;right:10px;bottom:calc(2px + env(safe-area-inset-bottom));max-width:none;
+ padding:0;font-size:8px;line-height:1.3;text-align:right;background:transparent;color:inherit;opacity:.7;
+}

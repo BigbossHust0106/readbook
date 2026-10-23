@@ -1626,7 +1626,7 @@ function Reader({
         setFont(Math.max(8,Math.min(72,Number(s.font)||20)));setFontDraft(String(Math.max(8,Math.min(72,Number(s.font)||20))));
         setSpeechVolume(Math.max(0,Math.min(1,Number(s.speechVolume) || (s.speechVolume===0?0:1))));setSpeechPitch(Math.max(.5,Math.min(2,Number(s.speechPitch)||1)));setSleepMinutes(Math.max(0,Math.min(1440,Number(s.sleepMinutes)||0)));
         setShowPageButtons(s.showPageButtons!==false);
-        setSpeechProvider(s.speechProvider==="device"?"device":"google");setSpeechVoice(s.speechVoice||"");setSpeechRate(Math.max(.6,Math.min(1.5,Number(s.speechRate)||1)));
+        setSpeechProvider(s.speechProvider==="device"?"device":"google");setSpeechVoice(s.speechVoice||"");setSpeechRate(Math.max(.6,Math.min(2,Number(s.speechRate)||1)));
         setTheme(readerThemes.some(theme=>theme.id===s.theme)?s.theme:'light');
         setLayout(s.layout);
         setReadMode(s.readMode === "continuous" ? "continuous" : "paged");
@@ -1860,7 +1860,7 @@ function Reader({
         <audio ref={speech.audio} controls preload="none" aria-label="Âm thanh đọc sách" hidden={speechProvider!=='google'}/>
         <div className="row">{speech.phase==='playing'&&<button onClick={speech.pause}>Tạm dừng nghe</button>}{speech.phase==='paused'&&<button onClick={()=>void speech.resume()}>Tiếp tục nghe</button>}{speech.phase==='error'&&<button onClick={speech.retry}>Thử đọc lại</button>}</div>
         <details><summary>Âm lượng, tốc độ & hẹn giờ</summary>
-        <label>Tốc độ đọc<select aria-label="Tốc độ đang nghe" value={speechRate} onChange={e=>setSpeechRate(Number(e.target.value))}>{[.6,.8,1,1.2,1.5].map(v=><option key={v} value={v}>{v}×</option>)}</select></label>
+        <label>Tốc độ đọc<select aria-label="Tốc độ đang nghe" value={speechRate} onChange={e=>setSpeechRate(Number(e.target.value))}>{[.6,.8,1,1.2,1.5,2].map(v=><option key={v} value={v}>{v}×</option>)}</select></label>
         <label>Âm lượng · {Math.round(speechVolume*100)}%<input aria-label="Âm lượng đọc" type="range" min={0} max={100} value={Math.round(speechVolume*100)} onChange={e=>setSpeechVolume(Number(e.target.value)/100)}/></label>
         <label>Hẹn giờ tắt (phút, 0 = tắt)<input aria-label="Hẹn giờ tắt" type="number" min={0} max={1440} value={sleepMinutes} onChange={e=>setSleep(Number(e.target.value))}/></label>
         {sleepRemaining>0&&<small role="status">Tắt sau {Math.floor(sleepRemaining/60)}:{String(sleepRemaining%60).padStart(2,'0')}</small>}
@@ -1944,7 +1944,7 @@ function Reader({
         <label>Cỡ chữ<input aria-label="Cỡ chữ" type="number" min={8} max={72} step={1} value={fontDraft} onChange={e=>{setFontDraft(e.target.value);const next=Number(e.target.value);if(next>=8&&next<=72)setFont(next);}} onBlur={()=>{const next=Math.max(8,Math.min(72,Number(fontDraft)||font));setFont(next);setFontDraft(String(next));}}/></label>
         <button onClick={()=>setShowBookmarks(true)}>Dấu trang</button><button onClick={()=>setShowBookSearch(true)}>Tìm trong sách</button>
         <label>Phông chữ<select aria-label="Phông chữ đọc" value={fontFamily} onChange={e=>setFontFamily(e.target.value)}>{readerFonts.map(font=><option value={font.id} key={font.id}>{font.label}</option>)}</select></label>
-        <label>Tốc độ đọc<select aria-label="Tốc độ đọc" value={speechRate} onChange={e=>setSpeechRate(Number(e.target.value))}>{[.6,.8,1,1.2,1.5].map(v=><option key={v} value={v}>{v}×</option>)}</select></label>
+        <label>Tốc độ đọc<select aria-label="Tốc độ đọc" value={speechRate} onChange={e=>setSpeechRate(Number(e.target.value))}>{[.6,.8,1,1.2,1.5,2].map(v=><option key={v} value={v}>{v}×</option>)}</select></label>
         <label>Nguồn giọng đọc<select aria-label="Nguồn giọng đọc" value={speechProvider} onChange={e=>{stopReading();setSpeechProvider(e.target.value as SpeechProvider);}}><option value="google">Google trực tuyến (gửi văn bản tới Google)</option><option value="device">Giọng thiết bị</option></select></label>
         {speechProvider==='device'&&<label>Giọng thiết bị<select aria-label="Giọng thiết bị" value={speechVoice} onChange={e=>{stopReading();setSpeechVoice(e.target.value);}}><option value="">Tự chọn đúng ngôn ngữ sách</option>{speech.voices.filter(v=>v.lang.toLowerCase().startsWith(book.language)).map(v=><option value={v.voiceURI} key={v.voiceURI}>{v.name} · {v.lang}</option>)}</select></label>}
         <label>Khoảng dòng<input aria-label="Khoảng dòng" type="range" min={1.3} max={2.5} step={0.05} value={lineHeight} onChange={e=>setLineHeight(Number(e.target.value))}/></label>
@@ -2098,6 +2098,7 @@ function Reader({
             touch.current=null;skipClick.current=Date.now()+800;e.preventDefault();if(direction)void goPage(pageIndex+(direction==='forward'?1:-1),false,false);return;
           }
           if(e.pointerType!=='touch'||!touch.current)return;const start=touch.current;touch.current=null;const dx=e.clientX-start.x,dy=e.clientY-start.y;
+          if(readMode==='paged'&&Math.abs(dx)<12&&Math.abs(dy)<12&&Date.now()-start.at<450&&window.getSelection()?.isCollapsed){const box=e.currentTarget.getBoundingClientRect();skipClick.current=Date.now()+800;e.preventDefault();void goPage(pageIndex+(e.clientX<box.left+box.width/2?-1:1));return;}
           if(readMode==='paged'&&Math.abs(dx)>55&&Math.abs(dx)>Math.abs(dy)*1.4&&Date.now()-start.at<1500&&window.getSelection()?.isCollapsed){skipClick.current=Date.now()+500;e.preventDefault();void goPage(pageIndex+(dx<0?1:-1));}
         }}
         onClick={e=>{if(Date.now()<skipClick.current||!getSelection()?.isCollapsed||(e.target as HTMLElement).closest('button,a,input,textarea,select,.paragraph-actions'))return;
@@ -2172,7 +2173,7 @@ function Reader({
       </div>
       {readMode === "continuous" && <div ref={sentinel} className="reading-sentinel" role="status">{rangeEnd < book.chapters.length ? "Đang nối phần tiếp theo…" : "Đã đến cuối sách."}</div>}
       {readMode==='paged'&&showPageButtons&&<nav className="desktop-page-buttons" aria-label="Lật trang"><button aria-label="Trang trước" disabled={paginationBusy||turning||pageIndex===0&&viewport.beforeComplete} onClick={()=>void goPage(pageIndex-1)}><ChevronLeft/></button><button aria-label="Trang sau" disabled={paginationBusy||turning||pageIndex>=pages.length-1&&viewport.afterComplete} onClick={()=>void goPage(pageIndex+1)}><ChevronRight/></button></nav>}
-      <div className="reader-page-status" aria-live="polite">{readMode==='paged'?`Trang ${pageIndex+1}/${viewport.complete?pages.length:'…'} · ${turning?'đang mở trang':viewport.complete?'kéo góc trang · vuốt hoặc dùng phím trái/phải':'đang chia tiếp trong nền'}`:'Đọc liên tục · tự lưu vị trí'}</div>
+      <div className="reader-page-status" aria-live="polite">{readMode==='paged'?`Trang ${pageIndex+1}/${viewport.complete?pages.length:'…'}`:'Đọc liên tục'}</div>
       {editing && (
         <Modal
           title="Bản dịch & ghi chú"

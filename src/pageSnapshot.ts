@@ -5,9 +5,11 @@ export function capturePage(source:HTMLElement){
  const rect=source.getBoundingClientRect();
  const snapshot=source.cloneNode(true) as HTMLElement;
   const originals=[source,...source.querySelectorAll<HTMLElement>('*')],copies=[snapshot,...snapshot.querySelectorAll<HTMLElement>('*')];
-  const properties=['display','box-sizing','font-family','font-size','font-weight','font-style','line-height','letter-spacing','word-spacing','color','text-align','text-indent','white-space','margin','padding','gap','grid-template-columns','border','border-radius','background-color','width','max-width','min-width','height','min-height','max-height','overflow','align-items','justify-content'];
+  const properties=['display','box-sizing','font-family','font-size','font-weight','font-style','line-height','letter-spacing','word-spacing','color','text-align','text-indent','white-space','overflow-wrap','word-break','margin','padding','gap','grid-template-columns','border','border-radius','background-color','width','max-width','min-width','overflow','align-items','justify-content'];
+  // Preserve normal block flow. Freezing every computed height prevents margin
+  // collapse and packs the snapshot differently from the actual reading page.
   originals.forEach((node,i)=>{const copy=copies[i],style=getComputedStyle(node);copy.removeAttribute('id');copy.removeAttribute('tabindex');for(const prop of properties)copy.style.setProperty(prop,style.getPropertyValue(prop));copy.style.animation='none';copy.style.transition='none';});
-  Object.assign(snapshot.style,{position:'absolute',left:'0',top:'0',width:`${rect.width}px`,height:`${rect.height}px`,maxWidth:'none',margin:'0',overflow:'hidden'});
+  Object.assign(snapshot.style,{position:'absolute',left:'0',top:'0',width:`${rect.width}px`,height:`${rect.height}px`,maxWidth:'none',maxHeight:'none',minHeight:'0',margin:'0',overflow:'hidden'});
  return snapshot;
 }
 
