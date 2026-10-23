@@ -14,7 +14,8 @@
     "build:preview": "tsc -b && vite build --mode preview",
     "prebuild": "node scripts/prepare-document-assets.mjs",
     "predev": "node scripts/prepare-document-assets.mjs",
-    "prebuild:preview": "node scripts/prepare-document-assets.mjs"
+    "prebuild:preview": "node scripts/prepare-document-assets.mjs",
+    "build:pageflip": "node scripts/build-pageflip.mjs"
   },
   "dependencies": {
     "@fontsource/be-vietnam-pro": "^5.3.0",
@@ -30,6 +31,7 @@
     "idb": "^8.0.3",
     "jszip": "^3.10.1",
     "lucide-react": "^0.468.0",
+    "page-flip": "2.0.7",
     "papaparse": "^5.5.3",
     "pdfjs-dist": "^6.4.299",
     "react": "^19.2.0",

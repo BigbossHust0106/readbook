@@ -1,3 +1,4 @@
+import {previewPage} from "./pageSnapshot";
 import {readerFonts,readerThemes,readerFontFamilies} from "./readerAppearance";
 import {usePageTurn} from "./usePageTurn";
 import {Modal} from "./Modal";
@@ -1556,7 +1557,10 @@ function Reader({
   const [rangeEnd, setRangeEnd] = useState(Math.min(book.chapters.length, book.position.chapter + 2));
   const [activeParagraph, setActiveParagraph] = useState("");
   const paper = useRef<HTMLDivElement | null>(null),pageFrame=useRef<HTMLDivElement|null>(null);
-  const pageTurn=usePageTurn(paper,pageFrame,readMode==='paged',JSON.stringify([font,fontFamily,lineHeight,layout,target,theme]));
+  const pageTurn=usePageTurn(paper,pageFrame,readMode==='paged',JSON.stringify([font,fontFamily,lineHeight,layout,target,theme]),direction=>{
+    if(!paper.current||paginationBusy||turning||translating)return null;
+    const next=pages[pageIndex+(direction==='forward'?1:-1)];return next?previewPage(paper.current,next,book,layout,target,search):null;
+  });
   const viewport=useViewportPages({book,position:pagePosition,frame:pageFrame,enabled:readMode==='paged'&&readerReady,layout,target,font,fontFamily:fonts[fontFamily],lineHeight,budget:Number.MAX_SAFE_INTEGER,widthLimit:Number.POSITIVE_INFINITY});
   const paginationBusy=readMode==='paged'&&(!readerReady||viewport.busy);
   const pages=viewport.pages;
@@ -1565,6 +1569,7 @@ function Reader({
   const translationPanel = useRef<HTMLDetailsElement | null>(null);
   const [wordHit,setWordHit]=useState<SelectedText|null>(null);
   const selecting=useRef(false),selectionTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+  const dragStart=useRef<{x:number;y:number;pointerId:number;mouseCorner:boolean}|null>(null);
   const touch=useRef<{x:number;y:number;at:number}|null>(null),skipClick=useRef(0);
   const [floatingTools,setFloatingTools]=useState(false),[toolsOffscreen,setToolsOffscreen]=useState(false),[controlsHeight,setControlsHeight]=useState(0);
   const controls=useRef<HTMLDivElement|null>(null),controlSlot=useRef<HTMLDivElement|null>(null);
@@ -1655,7 +1660,7 @@ function Reader({
       if(e.key==="Escape"){closeLookup();setFloatingTools(false);}
     };window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key);
   },[readMode,pageIndex,translating,pages,paginationBusy,turning]);
-  async function goPage(index: number, automatic=false) {
+  async function goPage(index: number, automatic=false, animate=true) {
     if(!automatic)stopReading();
     const epoch=readingEpoch.current;
     if (translating || paginationBusy || turning) return;
@@ -1668,7 +1673,7 @@ function Reader({
     }
     if(!page||automatic&&(epoch!==readingEpoch.current||!autoReading.current||sleepDeadline.current>0&&Date.now()>=sleepDeadline.current))return;
     const first=page.fragments[0],position={chapter:first.chapter,paragraph:first.paragraph,offset:first.start};
-    if(readMode==='paged')pageTurn.turn(index<pageIndex?'backward':'forward');
+    if(readMode==='paged'&&animate)pageTurn.turn(index<pageIndex?'backward':'forward');
     setPagePosition(position); setChapter(first.chapter); setActiveParagraph("");
     closeLookup();
     void readingProgress.record(position).catch(e=>notify(errorText(e)));
@@ -2069,9 +2074,30 @@ function Reader({
       {viewport.error&&readMode==='paged'&&<p role="alert">{viewport.error}</p>}
       {paginationBusy&&readMode==='paged'&&<p className="pagination-loading" role="status">Đang chia trang theo màn hình…</p>}
       <div ref={paper} className={`reading-paper paragraphs layout-${layout} mode-${readMode}`} style={{ fontSize: font,maxWidth:"none","--reader-font":fonts[fontFamily],"--reader-leading":lineHeight } as React.CSSProperties} tabIndex={0} aria-label="Trang sách" aria-busy={paginationBusy||turning}
-        onPointerDown={e=>{selecting.current=true;if(e.pointerType==='touch'){touch.current={x:e.clientX,y:e.clientY,at:Date.now()};skipClick.current=Date.now()+500;}}}
-        onPointerCancel={()=>{selecting.current=false;touch.current=null;}}
-        onPointerUp={e=>{selecting.current=false;if(e.pointerType!=='touch'||!touch.current)return;const start=touch.current;touch.current=null;const dx=e.clientX-start.x,dy=e.clientY-start.y;
+        onPointerDown={e=>{
+          selecting.current=true;const rect=e.currentTarget.getBoundingClientRect(),x=e.clientX-rect.left,y=e.clientY-rect.top;
+          const mouseCorner=(x<20||x>rect.width-20)&&(y<64||y>rect.height-64);
+          if(!(e.target as HTMLElement).closest('button,a,input,textarea,select')){dragStart.current={x:e.clientX,y:e.clientY,pointerId:e.pointerId,mouseCorner};if(readMode==='paged'&&e.pointerType==='mouse'&&mouseCorner&&getSelection()?.isCollapsed){e.preventDefault();e.currentTarget.focus({preventScroll:true});}};
+          if(e.pointerType==='touch'){touch.current={x:e.clientX,y:e.clientY,at:Date.now()};skipClick.current=Date.now()+500;}
+        }}
+        onPointerMove={e=>{
+          const start=dragStart.current;if(!start||start.pointerId!==e.pointerId||readMode!=='paged'||paginationBusy||turning)return;
+          const rect=e.currentTarget.getBoundingClientRect(),x=e.clientX-rect.left,y=e.clientY-rect.top;
+          if(pageTurn.isDragging()){pageTurn.move(x,y);e.preventDefault();return;}
+          const dx=e.clientX-start.x,dy=e.clientY-start.y;
+          if(e.pointerType==='mouse'&&!start.mouseCorner||Math.abs(dx)<12||e.pointerType!=='mouse'&&Math.abs(dx)<Math.abs(dy)*1.25||!getSelection()?.isCollapsed)return;
+          if(pageTurn.begin(dx<0?'forward':'backward',start.x-rect.left,start.y-rect.top)){
+            e.currentTarget.setPointerCapture(e.pointerId);closeLookup();skipClick.current=Date.now()+800;pageTurn.move(x,y);e.preventDefault();
+          }
+        }}
+        onPointerCancel={()=>{selecting.current=false;touch.current=null;dragStart.current=null;pageTurn.cancel();}}
+        onPointerUp={e=>{
+          selecting.current=false;dragStart.current=null;
+          if(pageTurn.isDragging()){
+            const rect=e.currentTarget.getBoundingClientRect();pageTurn.move(e.clientX-rect.left,e.clientY-rect.top);const direction=pageTurn.release();
+            touch.current=null;skipClick.current=Date.now()+800;e.preventDefault();if(direction)void goPage(pageIndex+(direction==='forward'?1:-1),false,false);return;
+          }
+          if(e.pointerType!=='touch'||!touch.current)return;const start=touch.current;touch.current=null;const dx=e.clientX-start.x,dy=e.clientY-start.y;
           if(readMode==='paged'&&Math.abs(dx)>55&&Math.abs(dx)>Math.abs(dy)*1.4&&Date.now()-start.at<1500&&window.getSelection()?.isCollapsed){skipClick.current=Date.now()+500;e.preventDefault();void goPage(pageIndex+(dx<0?1:-1));}
         }}
         onClick={e=>{if(Date.now()<skipClick.current||!getSelection()?.isCollapsed||(e.target as HTMLElement).closest('button,a,input,textarea,select,.paragraph-actions'))return;
@@ -2146,7 +2172,7 @@ function Reader({
       </div>
       {readMode === "continuous" && <div ref={sentinel} className="reading-sentinel" role="status">{rangeEnd < book.chapters.length ? "Đang nối phần tiếp theo…" : "Đã đến cuối sách."}</div>}
       {readMode==='paged'&&showPageButtons&&<nav className="desktop-page-buttons" aria-label="Lật trang"><button aria-label="Trang trước" disabled={paginationBusy||turning||pageIndex===0&&viewport.beforeComplete} onClick={()=>void goPage(pageIndex-1)}><ChevronLeft/></button><button aria-label="Trang sau" disabled={paginationBusy||turning||pageIndex>=pages.length-1&&viewport.afterComplete} onClick={()=>void goPage(pageIndex+1)}><ChevronRight/></button></nav>}
-      <div className="reader-page-status" aria-live="polite">{readMode==='paged'?`Trang ${pageIndex+1}/${viewport.complete?pages.length:'…'} · ${turning?'đang mở trang':viewport.complete?'vuốt hoặc dùng phím trái/phải':'đang chia tiếp trong nền'}`:'Đọc liên tục · tự lưu vị trí'}</div>
+      <div className="reader-page-status" aria-live="polite">{readMode==='paged'?`Trang ${pageIndex+1}/${viewport.complete?pages.length:'…'} · ${turning?'đang mở trang':viewport.complete?'kéo góc trang · vuốt hoặc dùng phím trái/phải':'đang chia tiếp trong nền'}`:'Đọc liên tục · tự lưu vị trí'}</div>
       {editing && (
         <Modal
           title="Bản dịch & ghi chú"
